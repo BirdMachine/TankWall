@@ -1,38 +1,47 @@
-# BettaBloom Live Wallpaper
+# TankWall Live Wallpaper
 
-Successor concept for a betta live wallpaper: custom background image/GIF/video/solid color, multiple fish skins/models, and up to 3 fish in the scene.
+A Godot-for-Android successor to the classic betta live wallpaper idea, built around user-selected media backgrounds, multiple fish choices, and eventually up to three fish swimming at once.
 
-This repository contains:
+## Current scaffold
 
-- `godot_project/` — Godot 4 project scaffold for the aquarium scene.
-- `.devcontainer/` — GitHub Codespaces environment with Java, Android SDK, and automatic Godot install.
-- `android_wrapper/` — Android live wallpaper wrapper notes/stub structure.
-- `assets/model_research/` — sourced betta model candidates and licensing notes.
-- `scripts/` — setup/build helpers.
-- `tools/` — helper scripts for adding backgrounds and checking model files.
+- Godot 4 aquarium scene using the mobile-friendly Compatibility renderer.
+- Placeholder fish mesh + procedural swim controller.
+- Fish count architecture already supports 1–3 fish.
+- Settings fields prepared for solid color, image, GIF-frame, and video backgrounds.
+- Android export preset using package `com.birdmachine.tankwall`.
+- GitHub Codespaces devcontainer with Java + Android SDK.
+- Codespace bootstrap script that installs stable Godot 4 and matching export templates.
+- GitHub Actions smoke check for the expected project shape.
 
-## Codespaces
+## Open it in Codespaces
 
-See `docs/CODESPACES.md`.
+From this repository choose:
 
-Fast path once this is in GitHub:
+`Code → Codespaces → Create codespace on main`
+
+The devcontainer runs `scripts/setup-codespaces.sh` automatically. After setup finishes, build with:
 
 ```bash
 bash scripts/build-android-debug.sh
 ```
 
-The output target is:
+Expected output:
 
 ```text
-godot_project/build/android/BettaBloom-debug.apk
+godot_project/build/android/TankWall-debug.apk
 ```
 
-## Important build note
+## Important milestone split
 
-The original sandbox did not include Godot/Android SDK/Gradle, so no real APK was generated there. The Codespaces devcontainer is designed to install the required tooling on first boot.
+The first milestone is a normal Android Godot APK so we can validate rendering, fish animation, settings, media backgrounds, and performance. The next milestone is native Android `WallpaperService` / Godot plugin wiring so Android exposes TankWall in the live-wallpaper picker.
 
-## Live wallpaper status
+## Near-term roadmap
 
-The project currently exports as a normal Android Godot app first. The next milestone is adding the Godot Android live wallpaper plugin/service wiring so Android recognizes it as a wallpaper provider.
+1. Make the placeholder aquarium APK build reproducibly in Codespaces.
+2. Add the Android live-wallpaper service/plugin.
+3. Add the settings UI and Android file picker for solid/image/GIF/video backgrounds.
+4. Replace the placeholder fish with a licensed, properly rigged betta model.
+5. Add fish/model selection and independent behavior for up to three fish.
+6. Add battery/performance controls, touch interaction, lighting, bubbles, and optional tank dressing.
 
-See `docs/BUILD_ANDROID.md` and `docs/FEATURE_SPEC.md`.
+See `docs/FEATURE_SPEC.md` and `assets/model_research/BETTA_MODEL_CANDIDATES.md` as those land.
