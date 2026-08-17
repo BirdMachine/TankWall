@@ -1,0 +1,21 @@
+name: Codespaces smoke check
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'godot_project/**'
+      - 'scripts/**'
+      - '.devcontainer/**'
+
+jobs:
+  validate-project-shape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check expected project files
+        run: |
+          test -f godot_project/project.godot
+          test -f godot_project/scenes/Main.tscn
+          test -f godot_project/scripts/Main.gd
+          python3 tools/check_assets.py
