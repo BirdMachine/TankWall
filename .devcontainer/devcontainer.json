@@ -1,0 +1,25 @@
+{
+  "name": "TankWall Godot Android",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "geequlim.godot-tools",
+        "redhat.vscode-xml",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "godot_tools.editor_path": "/usr/local/bin/godot",
+        "files.exclude": {
+          "**/.godot": true,
+          "**/android/build": true
+        }
+      }
+    }
+  },
+  "postCreateCommand": "bash scripts/setup-codespaces.sh",
+  "remoteUser": "vscode"
+}
