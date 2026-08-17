@@ -1,0 +1,21 @@
+# Godot
+.godot/
+.import/
+export.cfg
+export_presets.cfg~
+
+# Android/build outputs
+*.apk
+*.aab
+.gradle/
+build/
+**/build/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local asset staging
+assets/local/
