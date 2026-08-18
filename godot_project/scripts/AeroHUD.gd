@@ -87,7 +87,7 @@ func _build_ui() -> void:
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.add_theme_font_size_override("font_size", _font(28))
 		_style_button(b)
-		b.pressed.connect(func(page_name := name): _show_page(page_name))
+		b.pressed.connect(_show_page.bind(name))
 		tabs.add_child(b)
 		tab_buttons[name] = b
 
@@ -131,12 +131,18 @@ func _build_fish_page(parent: VBoxContainer) -> VBoxContainer:
 func _build_skin_page(parent: VBoxContainer) -> VBoxContainer:
 	var page := _new_page(parent)
 	_add_stepper(page, "FIN RATE", 0.35, 1.8, 0.10, 1.00, func(v): _main().set_fish_animation_rate(v), "%.2f")
-	_add_preset_row(page, "MOTION PRESET", [
+	_add_preset_row(page, "BODY TINT", [
+		["NATURAL", func(): _main().set_fish_tint(Color.WHITE)],
+		["AQUA", func(): _main().set_fish_tint(Color(0.45, 1.0, 0.95))],
+		["COBALT", func(): _main().set_fish_tint(Color(0.45, 0.62, 1.0))],
+		["VIOLET", func(): _main().set_fish_tint(Color(0.82, 0.50, 1.0))],
+		["ROSE", func(): _main().set_fish_tint(Color(1.0, 0.52, 0.68))],
+	])
+	_add_preset_row(page, "FIN MOTION", [
 		["CALM", func(): _main().set_fish_animation_rate(0.65)],
 		["NATURAL", func(): _main().set_fish_animation_rate(1.0)],
 		["LIVELY", func(): _main().set_fish_animation_rate(1.35)],
 	])
-	_add_status_row(page, "COLOR / MATERIAL MIXER", "NEXT PASS")
 	return page
 
 func _build_bg_page(parent: VBoxContainer) -> VBoxContainer:
