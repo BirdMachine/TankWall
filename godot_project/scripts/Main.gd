@@ -12,6 +12,7 @@ var fish_speed := 0.78
 var fish_turn_rate := 1.05
 var fish_visual_scale := 1.0
 var fish_animation_rate := 1.0
+var fish_tint := Color.WHITE
 
 func _ready() -> void:
 	RenderingServer.set_default_clear_color(solid_background)
@@ -42,6 +43,8 @@ func _apply_fish_settings(fish: Node3D) -> void:
 		fish.set_visual_scale(fish_visual_scale)
 	if fish.has_method("set_animation_rate"):
 		fish.set_animation_rate(fish_animation_rate)
+	if fish.has_method("set_body_tint"):
+		fish.set_body_tint(fish_tint)
 
 func _on_viewport_size_changed() -> void:
 	call_deferred("_configure_swim_bounds")
@@ -149,6 +152,12 @@ func set_fish_animation_rate(value: float) -> void:
 	for fish in fish_nodes:
 		if fish.has_method("set_animation_rate"):
 			fish.set_animation_rate(fish_animation_rate)
+
+func set_fish_tint(value: Color) -> void:
+	fish_tint = value
+	for fish in fish_nodes:
+		if fish.has_method("set_body_tint"):
+			fish.set_body_tint(fish_tint)
 
 func set_depth_range(value: float) -> void:
 	depth_range = clampf(value, 0.4, 3.2)
