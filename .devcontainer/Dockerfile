@@ -5,7 +5,11 @@ ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# The upstream devcontainer image may include a Yarn APT source whose signing
+# key can expire independently of this project. TankWall does not need Yarn,
+# so remove that third-party source before running apt-get update.
+RUN rm -f /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn*.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl unzip zip python3 python3-pip git libx11-6 libxcursor1 libxinerama1 \
     libxi6 libxrandr2 libxrender1 libgl1 libfontconfig1 libasound2 && \
     rm -rf /var/lib/apt/lists/*
