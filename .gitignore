@@ -19,3 +19,6 @@ Thumbs.db
 
 # Local asset staging
 assets/local/
+
+# Generated vendor model expansions (source ZIP remains tracked)
+godot_project/assets/models/bluemesh_betta/
