@@ -1,0 +1,75 @@
+name: FishSim Tuning Lab
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'experiments/fishsim/**'
+      - '.github/workflows/fishsim-tuning.yml'
+
+jobs:
+  simulate:
+    name: FishSim ${{ matrix.preset }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [silk_glide, balanced, responsive]
+
+    steps:
+      - name: Checkout TankWall
+        uses: actions/checkout@v4
+
+      - name: Install runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-6 libxext6 libxi6 libxfixes3 libxrender1 libxkbcommon0 \
+            libgl1 libegl1 libsm6 libice6 libxxf86vm1 libxrandr2 libxinerama1 \
+            libxcursor1 libwayland-client0 libwayland-egl1 libdbus-1-3
+
+      - name: Download Blender 4.2 LTS
+        run: |
+          curl -fL --retry 3 \
+            https://mirrors.dotsrc.org/blender/blender-release/Blender4.2/blender-4.2.10-linux-x64.tar.xz \
+            -o /tmp/blender.tar.xz
+          mkdir -p /tmp/blender
+          tar -xJf /tmp/blender.tar.xz -C /tmp/blender --strip-components=1
+          /tmp/blender/blender --version
+
+      - name: Download FishSim 4.02 with bundled models
+        run: |
+          mkdir -p /tmp/fishsim-raw /tmp/fishsim-package
+          curl -fL --retry 3 \
+            https://github.com/nerk987/FishSim/releases/latest/download/FishSim_4_02_0.zip \
+            -o /tmp/FishSim_4_02_0.zip
+          unzip -q /tmp/FishSim_4_02_0.zip -d /tmp/fishsim-raw
+          echo 'FishSim archive contents:'
+          find /tmp/fishsim-raw -maxdepth 3 -type f | sort | head -80
+          INIT=$(find /tmp/fishsim-raw -name __init__.py -print -quit)
+          if [ -z "$INIT" ]; then
+            echo 'FishSim __init__.py not found' >&2
+            exit 1
+          fi
+          SRC=$(dirname "$INIT")
+          cp -a "$SRC" /tmp/fishsim-package/FishSim
+          test -f /tmp/fishsim-package/FishSim/Models/Models.blend
+
+      - name: Run FishSim experiment
+        env:
+          FISHSIM_DIR: /tmp/fishsim-package/FishSim
+          TANKWALL_FISHSIM_PRESET: ${{ matrix.preset }}
+          TANKWALL_FISHSIM_OUT: ${{ github.workspace }}/fishsim-results/${{ matrix.preset }}
+        run: |
+          mkdir -p "$TANKWALL_FISHSIM_OUT"
+          /tmp/blender/blender --background --factory-startup \
+            --python experiments/fishsim/run_fishsim.py
+          cat "$TANKWALL_FISHSIM_OUT/${{ matrix.preset }}-summary.txt"
+
+      - name: Upload simulation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fishsim-${{ matrix.preset }}
+          path: fishsim-results/${{ matrix.preset }}/
+          if-no-files-found: error
+          retention-days: 14
