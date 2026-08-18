@@ -43,13 +43,19 @@ func play_best_swim_animation() -> void:
 	var names := animation_player.get_animation_list()
 	if names.is_empty():
 		return
-	var preferred := ["swim", "swimming", "idle", "loop", "default", "take 001"]
+	var preferred := ["swim", "swimming", "idle", "loop", "default", "take 01", "take 001"]
 	for want in preferred:
 		for name in names:
 			if want in String(name).to_lower():
-				animation_player.play(name)
+				_play_loop(name)
 				return
-	animation_player.play(names[0])
+	_play_loop(names[0])
+
+func _play_loop(name: StringName) -> void:
+	var anim := animation_player.get_animation(name)
+	if anim:
+		anim.loop_mode = Animation.LOOP_LINEAR
+	animation_player.play(name)
 
 func set_animation_speed(value: float) -> void:
 	animation_speed = value
