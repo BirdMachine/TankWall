@@ -21,13 +21,50 @@ func _spawn_fish() -> void:
 	for i in count:
 		var fish := fish_scene.instantiate() as Node3D
 		add_child(fish)
-		fish.position = Vector3(-1.0 + i, 0.15 * i, 0)
-		fish.set("swim_phase", i * 1.7)
+		fish.position = Vector3(-0.65 + i * 0.65, 0.15 * i, 0)
 		fish.set("lane", i)
 		fish_nodes.append(fish)
 
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			_set_touch_target(event.position, true)
+		else:
+			_clear_touch_target()
+	elif event is InputEventScreenDrag:
+		_set_touch_target(event.position, true)
+	elif event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_set_touch_target(event.position, true)
+			else:
+				_clear_touch_target()
+	elif event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_set_touch_target(event.position, true)
+
+func _set_touch_target(screen_pos: Vector2, active: bool) -> void:
+	var world_target = _screen_to_tank(screen_pos)
+	if world_target == null:
+		return
+	for fish in fish_nodes:
+		if fish.has_method("set_follow_target"):
+			fish.set_follow_target(world_target, active)
+
+func _clear_touch_target() -> void:
+	for fish in fish_nodes:
+		if fish.has_method("clear_follow_target"):
+			fish.clear_follow_target()
+
+func _screen_to_tank(screen_pos: Vector2):
+	var camera := $Camera3D as Camera3D
+	var ray_origin := camera.project_ray_origin(screen_pos)
+	var ray_direction := camera.project_ray_normal(screen_pos)
+	# Intersect touches with the middle of the tank. The fish still retains its
+	# own depth, but steering toward this point gives Betta-style follow behavior.
+	var tank_plane := Plane(Vector3(0, 0, 1), 0.0)
+	return tank_plane.intersects_ray(ray_origin, ray_direction)
+
 func _load_user_settings() -> void:
-	# Future Android settings activity writes JSON here.
 	var path := "user://settings.json"
 	if not FileAccess.file_exists(path):
 		return
