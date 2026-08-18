@@ -3,10 +3,9 @@ FROM mcr.microsoft.com/devcontainers/base:bookworm
 ARG ANDROID_CMDLINE_TOOLS=11076708
 ENV ANDROID_HOME=/opt/android-sdk
 ENV ANDROID_SDK_ROOT=/opt/android-sdk
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools
 
-# Keep the Codespaces base deliberately minimal. Installing Java ourselves
-# avoids third-party APT repositories inherited by language-specific images.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     openjdk-17-jdk-headless \
     ca-certificates curl unzip zip python3 python3-pip git \
@@ -21,6 +20,12 @@ RUN mkdir -p ${ANDROID_HOME}/cmdline-tools && \
     mv /tmp/android-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest && \
     rm -rf /tmp/cmdline-tools.zip /tmp/android-tools && \
     yes | sdkmanager --licenses >/dev/null || true && \
-    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+    sdkmanager --sdk_root=${ANDROID_HOME} \
+      "platform-tools" \
+      "platforms;android-35" \
+      "build-tools;35.0.1" \
+      "cmdline-tools;latest" \
+      "cmake;3.10.2.4988404" \
+      "ndk;28.1.13356709"
 
 RUN java -version && sdkmanager --version
