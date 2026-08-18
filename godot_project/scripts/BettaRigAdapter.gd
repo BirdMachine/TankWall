@@ -62,6 +62,26 @@ func set_animation_speed(value: float) -> void:
 	if animation_player:
 		animation_player.speed_scale = value
 
+func set_body_tint(color: Color) -> void:
+	if model_root == null:
+		return
+	_apply_tint_recursive(model_root, color)
+
+func _apply_tint_recursive(node: Node, color: Color) -> void:
+	if node is MeshInstance3D and "eye" not in node.name.to_lower():
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance.mesh:
+			for surface in mesh_instance.mesh.get_surface_count():
+				var source := mesh_instance.get_active_material(surface)
+				if source is BaseMaterial3D:
+					var material := source.duplicate() as BaseMaterial3D
+					# Albedo color multiplies the imported albedo texture, preserving the
+					# original scales, normal map and PBR detail while changing hue.
+					material.albedo_color = color
+					mesh_instance.set_surface_override_material(surface, material)
+	for child in node.get_children():
+		_apply_tint_recursive(child, color)
+
 func list_animation_names() -> PackedStringArray:
 	if animation_player:
 		return animation_player.get_animation_list()
