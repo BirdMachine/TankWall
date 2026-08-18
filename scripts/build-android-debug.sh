@@ -11,7 +11,9 @@ if ! command -v godot >/dev/null 2>&1; then
 fi
 
 cd "$PROJECT"
-godot --headless --editor --quit --path . || true
+# Import and validate the project. Do not hide scene/script errors: a green
+# workflow should mean the exported APK can actually load its main scene.
+godot --headless --editor --quit --path .
 godot --headless --path . --export-debug "Android" "$OUT"
 
 echo "APK written to $OUT"
