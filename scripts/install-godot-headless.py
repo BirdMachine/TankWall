@@ -4,7 +4,7 @@ from __future__ import annotations
 import json, re, shutil, stat, tempfile, urllib.request, zipfile
 from pathlib import Path
 
-BIN = Path('/usr/local/bin/godot')
+BIN = Path.home() / '.local/bin/godot'
 TEMPLATES_ROOT = Path.home() / '.local/share/godot/export_templates'
 API = 'https://api.github.com/repos/godotengine/godot-builds/releases'
 
@@ -36,6 +36,7 @@ def pick_release():
 
 
 def main():
+    BIN.parent.mkdir(parents=True, exist_ok=True)
     if BIN.exists():
         print(f'Godot already installed at {BIN}')
         return
@@ -65,7 +66,8 @@ def main():
                     continue
                 member.filename = name.removeprefix('templates/')
                 z.extract(member, dest)
-    print(f'Installed Godot {version} and export templates at {TEMPLATES_ROOT / version}')
+    print(f'Installed Godot {version} at {BIN}')
+    print(f'Installed export templates at {TEMPLATES_ROOT / version}')
 
 
 if __name__ == '__main__':
