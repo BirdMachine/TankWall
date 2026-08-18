@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install latest stable Godot 4 Linux editor + export templates in Codespaces."""
+"""Install latest stable Godot 4 Linux editor + matching export templates in Codespaces."""
 from __future__ import annotations
 import json, re, shutil, stat, tempfile, urllib.request, zipfile
 from pathlib import Path
@@ -37,37 +37,48 @@ def pick_release():
 
 def main():
     BIN.parent.mkdir(parents=True, exist_ok=True)
-    if BIN.exists():
-        print(f'Godot already installed at {BIN}')
-        return
     tag, editor_url, templates_url = pick_release()
-    version = tag.lstrip('v')
-    print(f'Installing Godot {version}')
-    with tempfile.TemporaryDirectory() as td_name:
-        td = Path(td_name)
-        editor_zip = td / 'godot.zip'
-        templates_zip = td / 'templates.tpz'
-        download(editor_url, editor_zip)
-        with zipfile.ZipFile(editor_zip) as z:
-            z.extractall(td / 'editor')
-        exe = next((p for p in (td / 'editor').iterdir() if p.is_file() and 'Godot' in p.name), None)
-        if exe is None:
-            raise RuntimeError('Could not find Godot executable in release zip')
-        shutil.copy2(exe, BIN)
-        BIN.chmod(BIN.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    download_version = tag.lstrip('v')
+    godot_version = download_version.replace('-stable', '.stable')
 
-        download(templates_url, templates_zip)
-        dest = TEMPLATES_ROOT / version
-        dest.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(templates_zip) as z:
-            for member in z.infolist():
-                name = member.filename
-                if not name.startswith('templates/') or name.endswith('/'):
-                    continue
-                member.filename = name.removeprefix('templates/')
-                z.extract(member, dest)
-    print(f'Installed Godot {version} at {BIN}')
-    print(f'Installed export templates at {TEMPLATES_ROOT / version}')
+    if not BIN.exists():
+        print(f'Installing Godot {download_version}')
+        with tempfile.TemporaryDirectory() as td_name:
+            td = Path(td_name)
+            editor_zip = td / 'godot.zip'
+            download(editor_url, editor_zip)
+            with zipfile.ZipFile(editor_zip) as z:
+                z.extractall(td / 'editor')
+            exe = next((p for p in (td / 'editor').iterdir() if p.is_file() and 'Godot' in p.name), None)
+            if exe is None:
+                raise RuntimeError('Could not find Godot executable in release zip')
+            shutil.copy2(exe, BIN)
+            BIN.chmod(BIN.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    else:
+        print(f'Godot already installed at {BIN}')
+
+    dest = TEMPLATES_ROOT / godot_version
+    debug_apk = dest / 'android_debug.apk'
+    release_apk = dest / 'android_release.apk'
+    if not (debug_apk.exists() and release_apk.exists()):
+        print(f'Installing matching export templates to {dest}')
+        with tempfile.TemporaryDirectory() as td_name:
+            td = Path(td_name)
+            templates_zip = td / 'templates.tpz'
+            download(templates_url, templates_zip)
+            dest.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(templates_zip) as z:
+                for member in z.infolist():
+                    name = member.filename
+                    if not name.startswith('templates/') or name.endswith('/'):
+                        continue
+                    member.filename = name.removeprefix('templates/')
+                    z.extract(member, dest)
+    else:
+        print(f'Export templates already installed at {dest}')
+
+    print(f'Godot binary: {BIN}')
+    print(f'Export templates: {dest}')
 
 
 if __name__ == '__main__':
