@@ -203,3 +203,7 @@ func _apply_visual_scale() -> void:
 
 func set_animation_rate(value: float) -> void:
 	animation_rate = clampf(value, 0.35, 1.8)
+
+func set_body_tint(color: Color) -> void:
+	if rig_adapter:
+		rig_adapter.set_body_tint(color)
