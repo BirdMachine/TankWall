@@ -63,7 +63,7 @@ jobs:
         run: |
           mkdir -p "$TANKWALL_FISHSIM_OUT"
           /tmp/blender/blender --background --factory-startup \
-            --python experiments/fishsim/run_fishsim.py
+            --python experiments/fishsim/run_fishsim_headless.py
           cat "$TANKWALL_FISHSIM_OUT/${{ matrix.preset }}-summary.txt"
 
       - name: Upload simulation artifact
