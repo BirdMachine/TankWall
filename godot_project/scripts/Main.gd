@@ -18,7 +18,27 @@ func _ready() -> void:
 	RenderingServer.set_default_clear_color(solid_background)
 	_spawn_fish()
 	_load_user_settings()
+	_configure_wallpaper_runtime()
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
+
+func _configure_wallpaper_runtime() -> void:
+	# The same Godot scene runs in two Android contexts: the normal launcher
+	# activity (our configurator/test UI) and WallpaperService. Keep the dev HUD
+	# out of the wallpaper process and use a saner default frame cap there.
+	if not has_node("LiveWallpaper"):
+		return
+	var wallpaper = $LiveWallpaper
+	if wallpaper.has_method("is_live_wallpaper") and wallpaper.is_live_wallpaper():
+		Engine.max_fps = 60
+		if has_node("AeroHUD"):
+			$AeroHUD.visible = false
+
+func open_live_wallpaper_picker() -> int:
+	# Intended for the configurator UI. Android will open its native live
+	# wallpaper preview/picker for TankWall; on desktop this harmlessly returns 0.
+	if has_node("LiveWallpaper") and $LiveWallpaper.has_method("start_live_wallpaper_service"):
+		return $LiveWallpaper.start_live_wallpaper_service()
+	return 0
 
 func _spawn_fish() -> void:
 	for node in fish_nodes:

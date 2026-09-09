@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3 uid="uid://tankwallmain"]
+[gd_scene load_steps=5 format=3 uid="uid://tankwallmain"]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Fish.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/AeroHUD.gd" id="3"]
+[ext_resource type="Script" path="res://addons/Android/LiveWallpaper/LiveWallpaper.gd" id="4"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1")
@@ -16,6 +17,9 @@ current = true
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 2, 4)
 light_energy = 2.2
+
+[node name="LiveWallpaper" type="Node" parent="."]
+script = ExtResource("4")
 
 [node name="AeroHUD" type="CanvasLayer" parent="."]
 script = ExtResource("3")

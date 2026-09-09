@@ -15,6 +15,11 @@ fi
 # remains available.
 python3 "$ROOT/scripts/install-vendor-models.py"
 
+# LiveWallpaper is an Android plugin and therefore needs Godot's Gradle/custom
+# Android source template. This also installs the pinned plugin release when it
+# is not already present in the checkout.
+python3 "$ROOT/scripts/prepare-live-wallpaper.py"
+
 cd "$PROJECT"
 # Import and validate the project. Do not hide scene/script errors: a green
 # workflow should mean the exported APK can actually load its main scene.

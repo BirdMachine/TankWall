@@ -8,6 +8,9 @@ run/max_fps=120
 config/features=PackedStringArray("4.5", "Mobile")
 config/icon="res://icon.svg"
 
+[editor_plugins]
+enabled=PackedStringArray("res://addons/Android/LiveWallpaper/plugin.cfg")
+
 [rendering]
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
