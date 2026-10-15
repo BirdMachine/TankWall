@@ -24,8 +24,15 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # GitHub's hosted runner already provides the Android SDK and sdkmanager.
+      # setup-android@v3 attempts to install the removed legacy 'tools' package.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -path "*/bin/sdkmanager" -type f | sort -V | tail -1)"
+          test -n "$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          "$SDKMANAGER" --version
 
       - name: Install required Android packages
         run: |
