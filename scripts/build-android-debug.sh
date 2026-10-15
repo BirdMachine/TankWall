@@ -15,6 +15,15 @@ fi
 # remains available.
 python3 "$ROOT/scripts/install-vendor-models.py"
 
+# The LiveWallpaper plugin installs android_source.zip outside Godot's GUI.
+# Godot's Gradle export requires the build template version marker, which the
+# manual extraction path can omit. Match it to the running editor version.
+if [[ -d "$PROJECT/android/build" ]]; then
+  GODOT_VERSION="$(godot --version | sed -E 's/\.official\..*$//')"
+  printf '%s\n' "$GODOT_VERSION" > "$PROJECT/android/build/.build_version"
+  echo "Android Gradle template version: $(cat "$PROJECT/android/build/.build_version")"
+fi
+
 cd "$PROJECT"
 # Import and validate the project. Do not hide scene/script errors: a green
 # workflow should mean the exported APK can actually load its main scene.
