@@ -28,6 +28,9 @@ var rng := RandomNumberGenerator.new()
 var yaw_rate := 0.0
 var pitch_rate := 0.0
 var gait_time := 0.0
+var pause_time := 0.0
+var next_pause := 4.0
+var thrust_effort := 0.6
 
 func _ready() -> void:
 	rng.seed = Time.get_ticks_usec() + get_instance_id() * 7919
@@ -77,7 +80,13 @@ func _set_placeholder_visible(value: bool) -> void:
 func _physics_process(delta: float) -> void:
 	retarget_time -= delta
 	gait_time += delta
+	next_pause -= delta
+	if next_pause <= 0.0 and not follow_active:
+		pause_time = rng.randf_range(0.65, 1.5)
+		next_pause = rng.randf_range(4.0, 8.0)
+	pause_time = maxf(0.0, pause_time - delta)
 	var previous_heading := heading
+	var previous_speed := speed
 	var target := follow_target if follow_active else wander_target
 	var to_target := target - position
 
@@ -97,17 +106,24 @@ func _physics_process(delta: float) -> void:
 			avoidance[axis] = 1.0 - smoothstep(swim_bounds_min[axis], swim_bounds_min[axis] + margin, ahead[axis])
 			avoidance[axis] -= smoothstep(swim_bounds_max[axis] - margin, swim_bounds_max[axis], ahead[axis])
 		desired_heading = (desired_heading + avoidance * 2.4).normalized()
-		_turn_heading_toward(desired_heading, turn_rate * (1.45 if follow_active else 1.0), delta)
+		var nose_alignment := heading.dot(desired_heading)
+		var pivot_gain := lerpf(1.9, 1.0, smoothstep(-0.6, 0.6, nose_alignment))
+		if pause_time > 0.0 and not follow_active:
+			pivot_gain *= 0.2
+		_turn_heading_toward(desired_heading, turn_rate * pivot_gain * (1.2 if follow_active else 1.0), delta)
 
 		# A fish cannot translate sideways toward a waypoint. It slows while a
 		# destination is off its nose, rotates into the turn, then accelerates out.
 		var distance := to_target.length()
 		var alignment := clampf((heading.dot(desired_heading) + 1.0) * 0.5, 0.0, 1.0)
 		var arrival := clampf((distance - 0.12) / 1.55, 0.22, 1.0)
-		var turn_throttle := lerpf(0.32, 1.0, alignment)
-		# Slow breathing of effort creates brief glides between active swimming.
-		var glide := 0.80 + 0.20 * smoothstep(-0.35, 0.45, sin(gait_time * 1.15 + lane))
+		var turn_throttle := lerpf(0.10, 1.0, pow(alignment, 1.5))
+		# Reference footage alternates short strokes, coasting and stationary
+		# inspection. Vary thrust rather than towing the fish at constant speed.
+		var glide := 0.42 + 0.58 * smoothstep(-0.15, 0.50, sin(gait_time * 2.1 + lane))
 		var requested_speed := (sprint_speed if follow_active else cruise_speed * glide) * arrival * turn_throttle
+		if pause_time > 0.0 and not follow_active:
+			requested_speed = cruise_speed * 0.025
 		speed = move_toward(speed, requested_speed, acceleration * delta)
 	else:
 		speed = move_toward(speed, cruise_speed * 0.22, acceleration * delta)
@@ -119,6 +135,9 @@ func _physics_process(delta: float) -> void:
 	var angular_step := previous_heading.angle_to(heading) / maxf(delta, 0.0001)
 	yaw_rate = lerpf(yaw_rate, turn_axis.normalized().y * angular_step, 1.0 - exp(-8.0 * delta))
 	pitch_rate = lerpf(pitch_rate, (heading.y - previous_heading.y) / maxf(delta, 0.0001), 1.0 - exp(-6.0 * delta))
+	var push := maxf(0.0, (speed - previous_speed) / maxf(delta, 0.0001))
+	var effort_target := clampf(speed / maxf(cruise_speed, 0.01) * 0.48 + push * 0.8 + absf(yaw_rate) * 0.22, 0.02, 1.6)
+	thrust_effort = lerpf(thrust_effort, effort_target, 1.0 - exp(-6.0 * delta))
 	_keep_inside_bounds()
 	_apply_swim_orientation(delta)
 	_update_animation_speed()
@@ -157,7 +176,7 @@ func _apply_swim_orientation(delta: float) -> void:
 func _update_animation_speed() -> void:
 	if rig_adapter == null:
 		return
-	var ratio := clampf(speed / maxf(cruise_speed, 0.01), 0.0, 1.7)
+	var ratio := thrust_effort
 	# Cadence and body flex respond to speed; sustained curvature responds to
 	# actual angular velocity rather than oscillating the entire model root.
 	rig_adapter.set_swim_motion(ratio, yaw_rate, pitch_rate, animation_rate)

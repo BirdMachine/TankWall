@@ -2,6 +2,7 @@ extends Node
 class_name BettaRigAdapter
 
 const SwimModifier = preload("res://scripts/BettaSwimModifier.gd")
+const SurfaceBuilder = preload("res://scripts/BettaSurfaceBuilder.gd")
 
 const MODEL_CANDIDATES := [
 	"res://assets/models/bluemesh_betta/scene.gltf",
@@ -15,6 +16,8 @@ var animation_player: AnimationPlayer
 var animation_tree: AnimationTree
 var skeleton: Skeleton3D
 var swim_modifier: SkeletonModifier3D
+var membrane_materials: Array[ShaderMaterial] = []
+var fin_clock := 0.0
 
 func attach_to(host: Node3D) -> bool:
 	var scene := _load_first_model()
@@ -56,12 +59,21 @@ func attach_to(host: Node3D) -> bool:
 		model_root.queue_free()
 		return false
 	skeleton.add_child(swim_modifier)
+	membrane_materials = SurfaceBuilder.prepare(model_root, skeleton, swim_modifier)
 
 	return true
+
+func _process(delta: float) -> void:
+	fin_clock += minf(delta, 0.1)
+	for material in membrane_materials:
+		material.set_shader_parameter("fin_clock", fin_clock)
 
 func set_swim_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float) -> void:
 	if swim_modifier:
 		swim_modifier.set_motion(speed_ratio, yaw_rate, pitch_rate, rate)
+	for material in membrane_materials:
+		material.set_shader_parameter("flow_speed", speed_ratio)
+		material.set_shader_parameter("turn_drag", clampf(yaw_rate, -2.0, 2.0))
 
 func _find_skeleton(node: Node) -> Skeleton3D:
 	if node is Skeleton3D:
@@ -84,6 +96,8 @@ func set_body_tint(color: Color) -> void:
 	if model_root == null:
 		return
 	_apply_tint_recursive(model_root, color)
+	for material in membrane_materials:
+		material.set_shader_parameter("tint", color)
 
 func _apply_tint_recursive(node: Node, color: Color) -> void:
 	if node is MeshInstance3D and "eye" not in node.name.to_lower():

@@ -74,7 +74,7 @@ func _step() -> void:
 	if not tank_mode:
 		fish.rotation = Vector3(0, yaw, 0)
 		fish.rig_adapter.set_swim_motion(effort, turn, 0.0, 1.0)
-	if not output_dir.is_empty() and frame in [30, 50, 70, 165, 195, 345]:
+	if not output_dir.is_empty() and frame in [30, 50, 70, 165, 195, 230, 255, 280, 345]:
 		_save_frame.call_deferred(frame)
 	if frame >= 420:
 		quit()

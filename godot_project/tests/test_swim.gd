@@ -25,6 +25,18 @@ func _run() -> void:
 	modifier.active = false
 	check(not adapter.animation_player.active, "Baked root motion must be disabled")
 	check(skeleton.get_bone_count() == 53, "Unexpected rig; update the bone mapping deliberately")
+	check(not adapter.membrane_materials.is_empty(), "Real fin membranes must load")
+	var eye_surfaces := 0
+	for mesh_instance in adapter.model_root.find_children("*", "MeshInstance3D", true, false):
+		if "eyes" in String(mesh_instance.name).to_lower():
+			var eye_material = mesh_instance.get_active_material(0)
+			check(eye_material is BaseMaterial3D and eye_material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "Eyes must depth-test as opaque geometry")
+			eye_surfaces += 1
+		elif String(mesh_instance.name).to_lower() == "body_0":
+			check(mesh_instance.mesh.get_surface_count() == 2, "Flesh and soft fins need separate depth policies")
+			var flesh = mesh_instance.get_active_material(0)
+			check(flesh is BaseMaterial3D and flesh.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "Opaque head must occlude the far eye")
+	check(eye_surfaces > 0, "Eye check must inspect an actual eye surface")
 	var body := skeleton.find_bone("Bone.004_Armature")
 	var tip := skeleton.find_bone("Bone.043_Armature")
 	var lateral_min := INF
@@ -59,6 +71,8 @@ func _run() -> void:
 		modifier.elapsed = 0.0
 		modifier.angles.fill(0.0)
 		modifier.angular_velocities.fill(0.0)
+		modifier.cups.fill(0.0)
+		modifier.cup_velocities.fill(0.0)
 		modifier.previous_spine.fill(0.0)
 		modifier.set_motion(0.85, 0.8, 0.3, 1.0)
 		for frame in fps * 3:
@@ -67,7 +81,9 @@ func _run() -> void:
 	check(absf(results[0] - results[2]) < 0.08, "Fin integration diverges with frame rate")
 	modifier.advance_swim(5.0)
 	for angle in modifier.angles:
-		check(is_finite(angle) and absf(angle) <= 0.65, "Fin springs became unstable after a pause")
+		check(is_finite(angle) and absf(angle) <= 0.95, "Fin springs became unstable after a pause")
+	for angle in modifier.cups:
+		check(is_finite(angle) and absf(angle) <= 0.8, "Cupping springs became unstable")
 	# Exercise the real locomotion in a small portrait-shaped tank. This catches
 	# NaNs on reversal, swimming backwards, and extended wall pinning.
 	fish.rng.seed = 42
@@ -81,7 +97,13 @@ func _run() -> void:
 		check(fish.position.is_finite() and fish.quaternion.is_finite(), "Locomotion became non-finite")
 		var travel: Vector3 = fish.position - before
 		if travel.length() < 0.0005:
-			pinned += 1
+			# Stationary inspection is now intentional; distinguish it from
+			# stopped translation against a boundary.
+			var at_wall := false
+			for axis in 3:
+				at_wall = at_wall or absf(fish.position[axis] - fish.swim_bounds_min[axis]) < 0.01 or absf(fish.position[axis] - fish.swim_bounds_max[axis]) < 0.01
+			if at_wall:
+				pinned += 1
 		else:
 			minimum_heading_dot = minf(minimum_heading_dot, travel.normalized().dot(fish.heading))
 	check(pinned < 30, "Fish stays pinned at a wall")

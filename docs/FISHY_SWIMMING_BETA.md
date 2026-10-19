@@ -1,5 +1,9 @@
 # Fishy swimming beta — 2026-10-19
 
+**Superseded motion pass:** the user reported that this initial version still
+looked stiff. See [the real-video study and second beta](BETTA_VIDEO_STUDY.md)
+for the revised fin membranes, gait, eye fix and current verification.
+
 This beta targets the fish in TankWall. TamoTank integration, companion zones and
 the live-wallpaper branches are separate work. No assets or services were bought.
 
