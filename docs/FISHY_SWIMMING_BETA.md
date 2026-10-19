@@ -65,6 +65,10 @@ not a verified improvement over the free fish.
 
 Validated with Godot **4.5.1**, OpenGL Compatibility and software rendering:
 
+Android CI pins the same engine version and explicitly requests `platform-tools`
+instead of the setup action's obsolete default `tools` package. It uses the
+prebuilt Android template, so it does not download the NDK/CMake toolchains.
+
 ```bash
 python3 scripts/install-vendor-models.py
 godot --headless --editor --path godot_project --quit
