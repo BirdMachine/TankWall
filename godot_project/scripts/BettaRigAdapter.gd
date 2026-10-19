@@ -1,6 +1,8 @@
 extends Node
 class_name BettaRigAdapter
 
+const SwimModifier = preload("res://scripts/BettaSwimModifier.gd")
+
 const MODEL_CANDIDATES := [
 	"res://assets/models/bluemesh_betta/scene.gltf",
 	"res://assets/models/bluemesh_betta/scene.glb",
@@ -8,12 +10,11 @@ const MODEL_CANDIDATES := [
 	"res://assets/models/bluemesh_betta/betta_splendens.glb",
 ]
 
-@export var animation_speed := 1.0
-@export var auto_play := true
-
 var model_root: Node3D
 var animation_player: AnimationPlayer
 var animation_tree: AnimationTree
+var skeleton: Skeleton3D
+var swim_modifier: SkeletonModifier3D
 
 func attach_to(host: Node3D) -> bool:
 	var scene := _load_first_model()
@@ -29,38 +30,55 @@ func attach_to(host: Node3D) -> bool:
 	model_root.owner = host.owner
 	animation_player = _find_animation_player(model_root)
 	animation_tree = _find_animation_tree(model_root)
-
+	# The source clip contains model translation/rotation and is not an in-place
+	# swim. Let only the controller steer and only the modifier deform this rig.
 	if animation_player:
-		animation_player.speed_scale = animation_speed
-		if auto_play:
-			play_best_swim_animation()
+		animation_player.stop()
+		animation_player.active = false
+	if animation_tree:
+		animation_tree.active = false
+	skeleton = _find_skeleton(model_root)
+	if skeleton == null:
+		model_root.queue_free()
+		return false
+	skeleton.reset_bone_poses()
+	# glTF embeds a Sketchfab axis conversion, a translated helper Cube and an
+	# inverse-scaled armature. Normalize using the actual skeleton transform,
+	# rather than applying the artist's axes to the already converted scene.
+	var skeleton_in_model := model_root.global_transform.affine_inverse() * skeleton.global_transform
+	# Level the rest-pose body (its tail slopes down ~20 degrees in source).
+	model_root.transform = Transform3D(Basis(Vector3.RIGHT, 0.30), Vector3(0, -2.0, 0.7)) * skeleton_in_model.affine_inverse()
+	_clean_source_helpers(model_root)
+	swim_modifier = SwimModifier.new()
+	if not swim_modifier.configure(skeleton):
+		swim_modifier.free()
+		swim_modifier = null
+		model_root.queue_free()
+		return false
+	skeleton.add_child(swim_modifier)
 
 	return true
 
-func play_best_swim_animation() -> void:
-	if animation_player == null:
-		return
-	var names := animation_player.get_animation_list()
-	if names.is_empty():
-		return
-	var preferred := ["swim", "swimming", "idle", "loop", "default", "take 01", "take 001"]
-	for want in preferred:
-		for name in names:
-			if want in String(name).to_lower():
-				_play_loop(name)
-				return
-	_play_loop(names[0])
+func set_swim_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float) -> void:
+	if swim_modifier:
+		swim_modifier.set_motion(speed_ratio, yaw_rate, pitch_rate, rate)
 
-func _play_loop(name: StringName) -> void:
-	var anim := animation_player.get_animation(name)
-	if anim:
-		anim.loop_mode = Animation.LOOP_LINEAR
-	animation_player.play(name)
+func _find_skeleton(node: Node) -> Skeleton3D:
+	if node is Skeleton3D:
+		return node
+	for child in node.get_children():
+		var found := _find_skeleton(child)
+		if found:
+			return found
+	return null
 
-func set_animation_speed(value: float) -> void:
-	animation_speed = value
-	if animation_player:
-		animation_player.speed_scale = value
+func _clean_source_helpers(node: Node) -> void:
+	if node is MeshInstance3D and node.name == "Cube_0":
+		node.visible = false
+	if node is Light3D:
+		node.visible = false
+	for child in node.get_children():
+		_clean_source_helpers(child)
 
 func set_body_tint(color: Color) -> void:
 	if model_root == null:

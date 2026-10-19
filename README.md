@@ -2,6 +2,13 @@
 
 A Godot-for-Android successor to the classic betta live wallpaper idea, built around user-selected media backgrounds, multiple fish choices, and eventually up to three fish swimming at once.
 
+## Fishy swimming beta
+
+The `codex/fishy-swimming-beta` branch replaces the bundled model motion with
+traveling torso flexion, steering curvature and spring-driven fin chains on the
+existing 53-joint BlueMesh betta. The Android Swim Beta export preset installs
+beside regular TankWall. See [research, implementation and validation notes](docs/FISHY_SWIMMING_BETA.md).
+
 ## Current scaffold
 
 - Godot 4 aquarium scene using the mobile-friendly Compatibility renderer.

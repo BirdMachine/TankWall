@@ -5,7 +5,7 @@ extends Node3D
 @export var background_mode := "solid" # solid, image, video, gif_frames
 @export var solid_background := Color(0.02, 0.05, 0.09, 1.0)
 @export var background_file := "" # user-selected file copied into user://backgrounds
-@export var depth_range := 2.45
+@export var depth_range := 1.25
 
 var fish_nodes: Array[Node3D] = []
 var fish_speed := 0.78
@@ -28,7 +28,7 @@ func _spawn_fish() -> void:
 	for i in count:
 		var fish := fish_scene.instantiate() as Node3D
 		add_child(fish)
-		fish.position = Vector3(-0.65 + i * 0.65, 0.15 * i, 0)
+		fish.position = Vector3(-(count - 1) * 0.35 + i * 0.7, 0.15 * i, 0)
 		fish.set("lane", i)
 		fish_nodes.append(fish)
 		_apply_fish_settings(fish)

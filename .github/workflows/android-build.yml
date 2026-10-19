@@ -60,6 +60,9 @@ jobs:
           test -f godot_project/build/android/TankWall-debug.apk
           ls -lh godot_project/build/android/TankWall-debug.apk
 
+      - name: Verify deforming rig and locomotion
+        run: godot --headless --path godot_project --script res://tests/test_swim.gd
+
       - name: Upload TankWall APK
         uses: actions/upload-artifact@v4
         with:

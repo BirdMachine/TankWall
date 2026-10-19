@@ -8,7 +8,7 @@ const BettaRigAdapterScript = preload("res://scripts/BettaRigAdapter.gd")
 @export var acceleration := 0.72
 @export var turn_rate := 1.05 # radians/sec; deliberately graceful rather than twitchy
 @export var orientation_response := 7.5
-@export var imported_model_scale := 0.75
+@export var imported_model_scale := 0.28
 @export var swim_bounds_min := Vector3(-2.6, -1.8, -2.4)
 @export var swim_bounds_max := Vector3(2.6, 1.8, 2.4)
 
@@ -25,6 +25,9 @@ var follow_target := Vector3.ZERO
 var animation_rate := 1.0
 var visual_scale := 1.0
 var rng := RandomNumberGenerator.new()
+var yaw_rate := 0.0
+var pitch_rate := 0.0
+var gait_time := 0.0
 
 func _ready() -> void:
 	rng.seed = Time.get_ticks_usec() + get_instance_id() * 7919
@@ -73,6 +76,8 @@ func _set_placeholder_visible(value: bool) -> void:
 
 func _physics_process(delta: float) -> void:
 	retarget_time -= delta
+	gait_time += delta
+	var previous_heading := heading
 	var target := follow_target if follow_active else wander_target
 	var to_target := target - position
 
@@ -83,6 +88,15 @@ func _physics_process(delta: float) -> void:
 
 	if to_target.length_squared() > 0.0004:
 		desired_heading = to_target.normalized()
+		# Predict the nose's position before reaching the boundary. A gradual
+		# inward field produces an arc instead of a clamp-and-flap at the wall.
+		var ahead := position + heading * maxf(0.9, speed * 1.5)
+		var avoidance := Vector3.ZERO
+		for axis in 3:
+			var margin := minf(1.0, (swim_bounds_max[axis] - swim_bounds_min[axis]) * 0.28)
+			avoidance[axis] = 1.0 - smoothstep(swim_bounds_min[axis], swim_bounds_min[axis] + margin, ahead[axis])
+			avoidance[axis] -= smoothstep(swim_bounds_max[axis] - margin, swim_bounds_max[axis], ahead[axis])
+		desired_heading = (desired_heading + avoidance * 2.4).normalized()
 		_turn_heading_toward(desired_heading, turn_rate * (1.45 if follow_active else 1.0), delta)
 
 		# A fish cannot translate sideways toward a waypoint. It slows while a
@@ -91,7 +105,9 @@ func _physics_process(delta: float) -> void:
 		var alignment := clampf((heading.dot(desired_heading) + 1.0) * 0.5, 0.0, 1.0)
 		var arrival := clampf((distance - 0.12) / 1.55, 0.22, 1.0)
 		var turn_throttle := lerpf(0.32, 1.0, alignment)
-		var requested_speed := (sprint_speed if follow_active else cruise_speed) * arrival * turn_throttle
+		# Slow breathing of effort creates brief glides between active swimming.
+		var glide := 0.80 + 0.20 * smoothstep(-0.35, 0.45, sin(gait_time * 1.15 + lane))
+		var requested_speed := (sprint_speed if follow_active else cruise_speed * glide) * arrival * turn_throttle
 		speed = move_toward(speed, requested_speed, acceleration * delta)
 	else:
 		speed = move_toward(speed, cruise_speed * 0.22, acceleration * delta)
@@ -99,6 +115,10 @@ func _physics_process(delta: float) -> void:
 	# Propulsion is always along the fish's nose. This is the key distinction
 	# from the old prototype, which visually slid a flapping model through space.
 	position += heading * speed * delta
+	var turn_axis := previous_heading.cross(heading)
+	var angular_step := previous_heading.angle_to(heading) / maxf(delta, 0.0001)
+	yaw_rate = lerpf(yaw_rate, turn_axis.normalized().y * angular_step, 1.0 - exp(-8.0 * delta))
+	pitch_rate = lerpf(pitch_rate, (heading.y - previous_heading.y) / maxf(delta, 0.0001), 1.0 - exp(-6.0 * delta))
 	_keep_inside_bounds()
 	_apply_swim_orientation(delta)
 	_update_animation_speed()
@@ -138,9 +158,9 @@ func _update_animation_speed() -> void:
 	if rig_adapter == null:
 		return
 	var ratio := clampf(speed / maxf(cruise_speed, 0.01), 0.0, 1.7)
-	# The BlueMesh 6-second clip is already graceful. Keep its fin cadence slow
-	# at cruise and only beat harder while chasing a finger.
-	rig_adapter.set_animation_speed((0.58 + ratio * 0.34) * animation_rate)
+	# Cadence and body flex respond to speed; sustained curvature responds to
+	# actual angular velocity rather than oscillating the entire model root.
+	rig_adapter.set_swim_motion(ratio, yaw_rate, pitch_rate, animation_rate)
 
 func _pick_wander_target() -> void:
 	wander_target = Vector3(
