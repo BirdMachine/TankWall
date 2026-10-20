@@ -1,4 +1,4 @@
-# Betta video study and second swimming beta
+# Betta video study and swimming betas
 
 2026-10-19. The first beta was rejected for stiffness, and the user's screenshot
 showed an apparent second eye over the nose. Its bone-motion tests proved that
@@ -70,12 +70,80 @@ validated.
   low-effort motion, oblique/head-on eye views, and the Main scene's autonomous
   camera. Stronger folds were adjusted after inspection to avoid sharply
   creased or tangled fin shapes.
-- The Android beta keeps package `com.birdmachine.tankwall.swimbeta`, uses
-  version code 3 / `0.3-reference-study`, and can update the previous test build
-  signed in this workspace. Normal TankWall remains a separate installation.
+- The second beta used version code 3 / `0.3-reference-study`. See the dated
+  follow-up below for the current build and installation limitation.
 
 The existing topology and three main caudal ray sectors still limit detailed
 folding. This remains a procedural approximation with possible fin self-overlap,
 not cloth collision or CFD. Desktop software-rendered footage is not an Android
 performance benchmark. Kestrel testing remains necessary, and the user's visual
 assessment—not a green test suite—is the criterion for lifelike movement.
+
+
+## Tight-turn follow-up — 2026-10-20
+
+The user still found the swimming stiff and supplied specific turning examples.
+This pass revisited Jack and Dan at **01:03–01:08** and **01:52–01:57**, sampled
+at 2 fps, then inspected [AquaLush's 10-second short](https://www.youtube.com/shorts/eISGwE8dTXs)
+at 2 fps throughout and 8 fps over **00:03–00:04.8**. The short shows a compact
+reversal around 00:04: the head changes course, the posterior body curls, and
+the fan sweeps around and opens after it. The slow-motion turn around 01:54
+shows different head and tail headings within the same moment. Timing in the
+slow-motion source was not used as a physiological measurement.
+
+The supplied [four-hour aquarium video](https://www.youtube.com/watch?v=VQxOauQX9co&t=5257s)
+could not be retrieved after two timeouts. Only the user's screenshots at
+**01:27:42–01:27:43** were inspected for that source; they show the dark blue/red
+fish changing orientation within a small area, but do not establish its
+intermediate body poses. No claim is made to have watched that video interval.
+
+### Implementation
+
+- `BettaPivot.gd` supplies **brake → curl → pivot → release** for horizontal
+  destination changes greater than about 72 degrees. It captures a destination
+  through the manoeuvre to avoid alternating steering while avoidance updates.
+  Cruise steering remains available for small corrections.
+- Braking removes most forward travel before the pivot. Preparatory body
+  curvature builds for 0.16 s before root yaw starts; the pivot then takes
+  0.30–0.80 s depending on angle and the turn-rate setting, followed by a
+  0.36 s release. These are chosen animation timings, not measured biology.
+- The controller now places its origin at the head/pectoral pivot rather than
+  rotating the head around a remote torso centre. Uniform model scale and
+  original proportions are retained.
+- The spine receives an explicit bend envelope, independent of angular speed.
+  Curvature persists while the head turns, then unwinds. Ordinary tailbeat
+  amplitude is reduced during the manoeuvre; existing spring-driven fin rays
+  and soft membranes trail its changing curvature. Bank is limited to avoid
+  the earlier aircraft-like roll.
+- `SwimShowcase.gd -- --pivots` exercises the **actual controller** with two
+  deterministic destination reversals. `--overhead` shows the same course from
+  above. It does not keyframe the model's root rotation. The new preview is a
+  single square view with square pixels, with the overhead view shown afterward;
+  there is no side-by-side canvas or nonuniform video scaling.
+
+### Validation and limits
+
+`test_pivot.gd` loads the actual skin and checks both turn directions plus an
+exact 180-degree reversal. At 30/60/120 Hz the first reversal took about
+0.88–0.90 s with 0.054–0.060 world units of head travel before facing back.
+Those are synthetic scenario metrics, not measurements of the supplied fish.
+It also requires curvature before yaw, differing head/tail joint frames,
+release of the bend, and the rendered head remaining at its controller pivot.
+The existing skin/material, fin stability, autonomous tank and ordinary runtime
+checks remain in use. Numerical checks are regressions, not visual acceptance.
+
+Frame-by-frame desktop review included the same manoeuvre from oblique and
+overhead views, both turn directions, fin trailing/reopening and eye occlusion.
+Camera framing was enlarged after the first render clipped the tail fan.
+
+Current Android beta: version code **4**, **0.4-tight-turns**, package
+`com.birdmachine.tankwall.swimbeta`. The earlier workspace's debug signing key
+was unavailable in this session, so this APK has a new debug certificate.
+Android requires uninstalling the previous Swim Beta before installing this
+one; doing so resets that beta's saved settings. Normal TankWall is a separate
+package. APK signing/package validation and desktop rendering were checked;
+physical Android appearance and performance still need the user's review.
+
+This continues to use the existing free CC BY model and Godot. No purchased
+asset or paid animation service was used. Fin self-collision remains unsolved;
+this is a procedural swimming beta, not fluid simulation.

@@ -1,12 +1,14 @@
 extends Node3D
 
+const PivotMotion = preload("res://scripts/BettaPivot.gd")
+
 const BettaRigAdapterScript = preload("res://scripts/BettaRigAdapter.gd")
 
 @export var lane := 0
 @export var cruise_speed := 0.78
 @export var sprint_speed := 1.35
 @export var acceleration := 0.72
-@export var turn_rate := 1.05 # radians/sec; deliberately graceful rather than twitchy
+@export var turn_rate := 1.05 # cruising yaw; sharp reversals use the short pivot gait
 @export var orientation_response := 7.5
 @export var imported_model_scale := 0.28
 @export var swim_bounds_min := Vector3(-2.6, -1.8, -2.4)
@@ -31,6 +33,7 @@ var gait_time := 0.0
 var pause_time := 0.0
 var next_pause := 4.0
 var thrust_effort := 0.6
+var pivot = PivotMotion.new()
 
 func _ready() -> void:
 	rng.seed = Time.get_ticks_usec() + get_instance_id() * 7919
@@ -106,11 +109,16 @@ func _physics_process(delta: float) -> void:
 			avoidance[axis] = 1.0 - smoothstep(swim_bounds_min[axis], swim_bounds_min[axis] + margin, ahead[axis])
 			avoidance[axis] -= smoothstep(swim_bounds_max[axis] - margin, swim_bounds_max[axis], ahead[axis])
 		desired_heading = (desired_heading + avoidance * 2.4).normalized()
-		var nose_alignment := heading.dot(desired_heading)
-		var pivot_gain := lerpf(1.9, 1.0, smoothstep(-0.6, 0.6, nose_alignment))
-		if pause_time > 0.0 and not follow_active:
-			pivot_gain *= 0.2
-		_turn_heading_toward(desired_heading, turn_rate * pivot_gain * (1.2 if follow_active else 1.0), delta)
+		# Commit a reversal before translating around a broad waypoint arc.
+		# Hold its destination during the manoeuvre so avoidance cannot reverse
+		# steering every frame. Small corrections retain the cruising gait.
+		if not pivot.active() and pivot.cooldown <= 0.0 and (follow_active or pause_time <= 0.0):
+			var horizontal_error := Vector2(heading.x, heading.z).angle_to(Vector2(desired_heading.x, desired_heading.z))
+			if absf(horizontal_error) > 1.25 and absf(desired_heading.y) < 0.80:
+				pivot.begin(heading, desired_heading, turn_rate)
+		if not pivot.active():
+			var pause_gain := 0.2 if pause_time > 0.0 and not follow_active else 1.0
+			_turn_heading_toward(desired_heading, turn_rate * pause_gain * (1.2 if follow_active else 1.0), delta)
 
 		# A fish cannot translate sideways toward a waypoint. It slows while a
 		# destination is off its nose, rotates into the turn, then accelerates out.
@@ -124,9 +132,21 @@ func _physics_process(delta: float) -> void:
 		var requested_speed := (sprint_speed if follow_active else cruise_speed * glide) * arrival * turn_throttle
 		if pause_time > 0.0 and not follow_active:
 			requested_speed = cruise_speed * 0.025
-		speed = move_toward(speed, requested_speed, acceleration * delta)
+		if pivot.active():
+			# Brake hard before curling; retain a small forward drift. The exit
+			# stroke starts only after the nose has completed the reversal.
+			requested_speed = cruise_speed * (0.48 if pivot.stage == "release" else 0.035)
+			var braking := maxf(acceleration * 3.5, cruise_speed * 3.0)
+			speed = move_toward(speed, requested_speed, (acceleration if pivot.stage == "release" else braking) * delta)
+		else:
+			speed = move_toward(speed, requested_speed, acceleration * delta)
 	else:
 		speed = move_toward(speed, cruise_speed * 0.22, acceleration * delta)
+
+	pivot.advance(delta, speed, cruise_speed)
+	if pivot.active():
+		heading = pivot.heading
+		desired_heading = pivot.goal
 
 	# Propulsion is always along the fish's nose. This is the key distinction
 	# from the old prototype, which visually slid a flapping model through space.
@@ -166,11 +186,11 @@ func _apply_swim_orientation(delta: float) -> void:
 	# Bank into turns. The error is measured before the next steering step so a
 	# broad course correction produces a visible, Betta-like sweeping roll.
 	var yaw_error := heading.cross(desired_heading).dot(Vector3.UP)
-	var bank := clampf(-yaw_error * 0.78, -0.38, 0.38)
+	var bank := clampf(-yaw_error * 0.25, -0.12, 0.12)
 	var target_basis := Basis(heading, dorsal, side)
 	target_basis = target_basis.rotated(heading, bank)
 
-	var blend := 1.0 - exp(-orientation_response * delta)
+	var blend := 1.0 - exp(-(24.0 if pivot.active() else orientation_response) * delta)
 	quaternion = quaternion.slerp(target_basis.get_rotation_quaternion(), blend).normalized()
 
 func _update_animation_speed() -> void:
@@ -179,7 +199,7 @@ func _update_animation_speed() -> void:
 	var ratio := thrust_effort
 	# Cadence and body flex respond to speed; sustained curvature responds to
 	# actual angular velocity rather than oscillating the entire model root.
-	rig_adapter.set_swim_motion(ratio, yaw_rate, pitch_rate, animation_rate)
+	rig_adapter.set_swim_motion(ratio, yaw_rate, pitch_rate, animation_rate, pivot.bend)
 
 func _pick_wander_target() -> void:
 	wander_target = Vector3(
@@ -187,8 +207,8 @@ func _pick_wander_target() -> void:
 		rng.randf_range(swim_bounds_min.y, swim_bounds_max.y),
 		rng.randf_range(swim_bounds_min.z, swim_bounds_max.z)
 	)
-	# Long destinations + a finite turn rate produce the large lazy arcs visible
-	# in Betta 120Hz. A few shorter runs keep the motion from looking scripted.
+	# Mix leisurely cruises with shorter inspections; the pivot gait handles
+	# destinations behind the head without an aircraft-like U-turn.
 	if rng.randf() < 0.18:
 		wander_target = position + Vector3(
 			rng.randf_range(-1.6, 1.6),
@@ -239,6 +259,9 @@ func set_visual_scale(value: float) -> void:
 func _apply_visual_scale() -> void:
 	if model_host:
 		model_host.scale = Vector3.ONE * imported_model_scale * visual_scale
+		# Position denotes the head/pectoral pivot. The source was previously
+		# centred on the torso, making every reversal orbit a remote centre.
+		model_host.position = Vector3(-2.0, -0.7, 0.0) * imported_model_scale * visual_scale
 
 func set_animation_rate(value: float) -> void:
 	animation_rate = clampf(value, 0.35, 1.8)

@@ -6,6 +6,8 @@ var fish: Node3D
 var frame := 0
 var output_dir := ""
 var tank_mode := false
+var pivot_mode := false
+var overhead := false
 
 func _initialize() -> void:
 	call_deferred("_start")
@@ -14,6 +16,10 @@ func _start() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--output="):
 			output_dir = arg.trim_prefix("--output=")
+		if arg == "--overhead":
+			overhead = true
+		if arg == "--pivots":
+			pivot_mode = true
 		if arg == "--tank":
 			tank_mode = true
 	if tank_mode:
@@ -42,7 +48,13 @@ func _start() -> void:
 	camera.position = Vector3(0, 0.5, 5.8)
 	camera.look_at(Vector3(0, -0.2, 0))
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 3.6
+	camera.size = 5.8 if pivot_mode else 3.6
+	if pivot_mode:
+		camera.position = Vector3(0, 2.2, 6.5)
+		camera.look_at(Vector3(0, -0.2, 0))
+		if overhead:
+			camera.position = Vector3(0, 6.5, 0.1)
+			camera.look_at(Vector3.ZERO)
 	camera.current = true
 	for location in [Vector3(1, 3, 4), Vector3(-3, 1, -2)]:
 		var light := OmniLight3D.new()
@@ -53,6 +65,15 @@ func _start() -> void:
 	world.add_child(fish)
 	fish.set_visual_scale(1.2)
 	fish.set_physics_process(false)
+	if pivot_mode:
+		# Real controller, deterministic waypoints. No keyed root rotations.
+		fish.set_swim_bounds(Vector3(-8, -8, -8), Vector3(8, 8, 8))
+		fish.position = Vector3(-0.35, 0, 0)
+		fish.heading = Vector3.RIGHT
+		fish.quaternion = Quaternion.IDENTITY
+		fish.speed = 0.20
+		fish.sprint_speed = 0.25
+		fish.set_follow_target(Vector3(5, 0, 0))
 	if not fish.using_imported_model:
 		push_error("Showcase requires the actual skinned betta")
 		quit(1)
@@ -71,12 +92,18 @@ func _step() -> void:
 		turn = 1.0
 	elif t > 10.0:
 		effort = 0.12
-	if not tank_mode:
+	if pivot_mode:
+		if frame == 54:
+			fish.set_follow_target(Vector3(-5, 0, -0.15))
+		if frame == 150:
+			fish.set_follow_target(Vector3(5, 0, 0.25))
+		fish._physics_process(1.0 / 30.0)
+	elif not tank_mode:
 		fish.rotation = Vector3(0, yaw, 0)
 		fish.rig_adapter.set_swim_motion(effort, turn, 0.0, 1.0)
-	if not output_dir.is_empty() and frame in [30, 50, 70, 165, 195, 230, 255, 280, 345]:
+	if not output_dir.is_empty() and frame in [30, 54, 60, 66, 72, 78, 84, 90, 105, 150, 186, 198, 210, 225, 255, 280, 345]:
 		_save_frame.call_deferred(frame)
-	if frame >= 420:
+	if frame >= (285 if pivot_mode else 420):
 		quit()
 
 func _save_frame(number: int) -> void:

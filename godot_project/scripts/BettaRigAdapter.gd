@@ -68,9 +68,9 @@ func _process(delta: float) -> void:
 	for material in membrane_materials:
 		material.set_shader_parameter("fin_clock", fin_clock)
 
-func set_swim_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float) -> void:
+func set_swim_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float, pivot_bend := 0.0) -> void:
 	if swim_modifier:
-		swim_modifier.set_motion(speed_ratio, yaw_rate, pitch_rate, rate)
+		swim_modifier.set_motion(speed_ratio, yaw_rate, pitch_rate, rate, pivot_bend)
 	for material in membrane_materials:
 		material.set_shader_parameter("flow_speed", speed_ratio)
 		material.set_shader_parameter("turn_drag", clampf(yaw_rate, -2.0, 2.0))

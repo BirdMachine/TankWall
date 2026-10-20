@@ -18,6 +18,7 @@ var elapsed := 0.0
 var effort := 0.5
 var turn_load := 0.0
 var pitch_load := 0.0
+var pivot_load := 0.0
 var cadence_scale := 1.0
 var rests: Array[Transform3D] = []
 var lateral_axes: Array[Vector3] = []
@@ -69,11 +70,12 @@ func configure(skeleton: Skeleton3D) -> bool:
 	previous_spine.resize(spine.size())
 	return true
 
-func set_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float) -> void:
+func set_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float, pivot_bend := 0.0) -> void:
 	effort = clampf(speed_ratio, 0.0, 1.8)
 	turn_load = clampf(yaw_rate, -2.6, 2.6)
 	pitch_load = clampf(pitch_rate, -1.0, 1.0)
 	cadence_scale = rate
+	pivot_load = clampf(pivot_bend, -1.9, 1.9)
 
 func _process_modification() -> void:
 	# _process_modification is supported by Godot 4.3–4.5 as well as newer builds.
@@ -87,14 +89,16 @@ func advance_swim(delta: float) -> void:
 	var dt := clampf(delta, 0.0, 0.1)
 	elapsed += dt
 	phase = fmod(phase + dt * TAU * (0.32 + 1.05 * effort) * cadence_scale, TAU)
-	var drive := 0.055 + 0.52 * clampf(effort, 0.0, 1.4)
+	var drive := (0.055 + 0.52 * clampf(effort, 0.0, 1.4)) * (1.0 - 0.70 * clampf(absf(pivot_load), 0.0, 1.0))
 	var absolute_yaw := PackedFloat32Array()
 	for j in spine.size():
 		var s := float(j) / float(spine.size() - 1)
 		# A caudally travelling wave with a quiet head and progressively larger
 		# posterior flexion. Steering adds sustained C curvature, not root yaw.
 		var yaw := drive * (0.045 + pow(s, 1.55)) * sin(phase - s * 3.8)
-		yaw -= turn_load * 0.72 * pow(s, 1.25)
+		# A preparatory C bend exists before root yaw starts. It unwinds
+		# through the pivot instead of being a side effect of angular speed.
+		yaw -= turn_load * 0.16 * pow(s, 1.4) + pivot_load * pow(s, 1.10)
 		absolute_yaw.append(yaw)
 		var parent_yaw := 0.0 if j == 0 else absolute_yaw[j - 1]
 		var bend := Quaternion(lateral_axes[spine[j]], yaw - parent_yaw)
