@@ -26,6 +26,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Install required Android packages
         run: |
@@ -34,11 +36,11 @@ jobs:
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.1" \
-            "cmdline-tools;latest" \
-            "cmake;3.10.2.4988404" \
-            "ndk;28.1.13356709"
+            "cmdline-tools;latest"
 
       - name: Install Godot and export templates
+        env:
+          GODOT_VERSION: 4.5.1-stable
         run: |
           python3 scripts/install-godot-headless.py
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
@@ -59,6 +61,12 @@ jobs:
         run: |
           test -f godot_project/build/android/TankWall-debug.apk
           ls -lh godot_project/build/android/TankWall-debug.apk
+
+      - name: Verify deforming rig and locomotion
+        run: |
+          godot --headless --path godot_project --script res://tests/test_swim.gd
+          godot --headless --path godot_project --script res://tests/test_pivot.gd
+          godot --headless --fixed-fps 60 --path godot_project --script res://tests/diagnose_runtime.gd
 
       - name: Upload TankWall APK
         uses: actions/upload-artifact@v4

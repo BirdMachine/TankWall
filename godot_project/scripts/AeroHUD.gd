@@ -126,6 +126,11 @@ func _build_fish_page(parent: VBoxContainer) -> VBoxContainer:
 	_add_stepper(page, "SWIM SPEED", 0.25, 1.8, 0.10, 0.78, func(v): _main().set_fish_speed(v), "%.2f")
 	_add_stepper(page, "TURN RATE", 0.35, 2.6, 0.10, 1.05, func(v): _main().set_fish_turn_rate(v), "%.2f")
 	_add_stepper(page, "FISH SIZE", 0.45, 1.7, 0.10, 1.00, func(v): _main().set_fish_size(v), "%.2f")
+	var credit := LinkButton.new()
+	credit.text = "Betta Splendens — BlueMesh · CC BY 4.0 · modified swim rig"
+	credit.add_theme_font_size_override("font_size", _font(21))
+	credit.pressed.connect(func(): OS.shell_open("https://sketchfab.com/3d-models/betta-splendens-f4eeb7f50ad24873842bd954ad27d23b"))
+	page.add_child(credit)
 	return page
 
 func _build_skin_page(parent: VBoxContainer) -> VBoxContainer:
@@ -158,8 +163,8 @@ func _build_bg_page(parent: VBoxContainer) -> VBoxContainer:
 
 func _build_fx_page(parent: VBoxContainer) -> VBoxContainer:
 	var page := _new_page(parent)
-	_add_stepper(page, "LIGHT", 0.1, 6.0, 0.25, 2.2, func(v): _main().set_light_energy(v), "%.2f")
-	_add_stepper(page, "DEPTH", 0.4, 3.2, 0.20, 2.45, func(v): _main().set_depth_range(v), "%.2f")
+	_add_stepper(page, "LIGHT", 0.1, 6.0, 0.25, 1.2, func(v): _main().set_light_energy(v), "%.2f")
+	_add_stepper(page, "DEPTH", 0.4, 3.2, 0.20, 1.25, func(v): _main().set_depth_range(v), "%.2f")
 	_add_status_row(page, "CAUSTICS / BUBBLES", "NEXT PASS")
 	return page
 

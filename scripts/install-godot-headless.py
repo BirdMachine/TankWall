@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Install latest stable Godot 4 Linux editor + matching export templates in Codespaces."""
 from __future__ import annotations
-import json, re, shutil, stat, tempfile, urllib.request, zipfile
+import json, os, re, shutil, stat, tempfile, urllib.request, zipfile
 from pathlib import Path
 
 BIN = Path.home() / '.local/bin/godot'
@@ -23,6 +23,14 @@ def download(url: str, dest: Path):
 
 
 def pick_release():
+    # CI pins the engine used for visual/rig validation. Direct release URLs
+    # also avoid an unnecessary GitHub API lookup for a known version.
+    pinned = os.environ.get('GODOT_VERSION', '').strip()
+    if pinned:
+        if not re.fullmatch(r'4\.\d+(?:\.\d+)?-stable', pinned):
+            raise ValueError(f'Unsupported GODOT_VERSION: {pinned}')
+        base = f'https://github.com/godotengine/godot-builds/releases/download/{pinned}/Godot_v{pinned}'
+        return pinned, base + '_linux.x86_64.zip', base + '_export_templates.tpz'
     for rel in fetch_json(API):
         tag = rel.get('tag_name', '')
         if rel.get('prerelease') or rel.get('draft') or not re.match(r'^4\.', tag):
