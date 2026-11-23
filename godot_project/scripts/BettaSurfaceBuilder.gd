@@ -3,31 +3,43 @@ extends RefCounted
 ## bindings and texture attribution remain intact; COLOR stores membrane data.
 
 const MembraneShader = preload("res://shaders/BettaMembrane.gdshader")
+const VolumeSkin = preload("res://scripts/BettaVolumeSkin.gd")
 
-static func prepare(node: Node, skeleton: Skeleton3D, modifier: SkeletonModifier3D) -> Array[ShaderMaterial]:
+static func prepare(node: Node, skeleton: Skeleton3D, modifier: SkeletonModifier3D, drivers: Array) -> Array[ShaderMaterial]:
 	var materials: Array[ShaderMaterial] = []
-	_prepare_recursive(node, skeleton, modifier, materials)
+	_prepare_recursive(node, skeleton, modifier, materials, drivers)
 	return materials
 
-static func _prepare_recursive(node: Node, skeleton: Skeleton3D, modifier: SkeletonModifier3D, materials: Array[ShaderMaterial]) -> void:
+static func _prepare_recursive(node: Node, skeleton: Skeleton3D, modifier: SkeletonModifier3D, materials: Array[ShaderMaterial], drivers: Array) -> void:
 	if node is MeshInstance3D and node.mesh:
 		var name_lower := String(node.name).to_lower()
 		if "eyes" in name_lower:
 			# The source uses alpha blending even on opaque eyeballs. Both eyes
 			# must be depth tested against opaque flesh, not sorted over the head.
+			var eyes := ArrayMesh.new()
 			for surface in node.mesh.get_surface_count():
 				var source = node.get_active_material(surface)
 				if source is StandardMaterial3D:
-					var eye := source.duplicate() as StandardMaterial3D
-					eye.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-					eye.cull_mode = BaseMaterial3D.CULL_BACK
-					eye.metallic = 0.05
-					eye.roughness = 0.24
-					node.set_surface_override_material(surface, eye)
+					var arrays: Array = node.mesh.surface_get_arrays(surface)
+					for attribute in [Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+						arrays[attribute] = null
+					VolumeSkin.encode(arrays)
+					eyes.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, VolumeSkin.CUSTOM_FLAGS)
+					var eye := VolumeSkin.flesh_material(source)
+					eye.set_shader_parameter("surface_metallic", 0.05)
+					eye.set_shader_parameter("surface_roughness", 0.24)
+					eye.set_shader_parameter("use_surface_map", false)
+					eyes.surface_set_material(eyes.get_surface_count() - 1, eye)
+			node.mesh = eyes
+			node.custom_aabb = eyes.get_aabb().grow(1.5)
 		elif name_lower == "body_0":
 			_split_body(node, skeleton, modifier, materials)
+		if name_lower in ["eyes_0", "body_0"]:
+			var driver := VolumeSkin.new()
+			if driver.attach(node, skeleton):
+				drivers.append(driver)
 	for child in node.get_children():
-		_prepare_recursive(child, skeleton, modifier, materials)
+		_prepare_recursive(child, skeleton, modifier, materials, drivers)
 
 static func _split_body(instance: MeshInstance3D, skeleton: Skeleton3D, modifier: SkeletonModifier3D, materials: Array[ShaderMaterial]) -> void:
 	var mesh := instance.mesh
@@ -71,6 +83,7 @@ static func _split_body(instance: MeshInstance3D, skeleton: Skeleton3D, modifier
 			colors.append(Color(soft, clampf((p.z + 4.2) / 5.8, 0.0, 1.0), clampf((p.y + 0.5) / 6.5, 0.0, 1.0), kind_id))
 			fin_weights.append(membership)
 		arrays[Mesh.ARRAY_COLOR] = colors
+		VolumeSkin.encode(arrays)
 		var opaque_indices := PackedInt32Array()
 		var fin_indices := PackedInt32Array()
 		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
@@ -84,14 +97,12 @@ static func _split_body(instance: MeshInstance3D, skeleton: Skeleton3D, modifier
 				opaque_indices.append_array(PackedInt32Array([a, b, c]))
 		if not opaque_indices.is_empty():
 			arrays[Mesh.ARRAY_INDEX] = opaque_indices
-			result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-			var flesh := source.duplicate() as StandardMaterial3D
-			flesh.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-			flesh.cull_mode = BaseMaterial3D.CULL_BACK
+			result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, VolumeSkin.CUSTOM_FLAGS)
+			var flesh := VolumeSkin.flesh_material(source)
 			result.surface_set_material(result.get_surface_count() - 1, flesh)
 		if not fin_indices.is_empty():
 			arrays[Mesh.ARRAY_INDEX] = fin_indices
-			result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			result.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, VolumeSkin.CUSTOM_FLAGS)
 			var membrane := ShaderMaterial.new()
 			membrane.shader = MembraneShader
 			membrane.set_shader_parameter("albedo_texture", source.albedo_texture)

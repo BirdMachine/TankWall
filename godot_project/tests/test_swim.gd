@@ -30,12 +30,12 @@ func _run() -> void:
 	for mesh_instance in adapter.model_root.find_children("*", "MeshInstance3D", true, false):
 		if "eyes" in String(mesh_instance.name).to_lower():
 			var eye_material = mesh_instance.get_active_material(0)
-			check(eye_material is BaseMaterial3D and eye_material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "Eyes must depth-test as opaque geometry")
+			check(eye_material is ShaderMaterial and eye_material.shader == preload("res://shaders/BettaFlesh.gdshader"), "Eyes must use the opaque volume skin")
 			eye_surfaces += 1
 		elif String(mesh_instance.name).to_lower() == "body_0":
 			check(mesh_instance.mesh.get_surface_count() == 2, "Flesh and soft fins need separate depth policies")
 			var flesh = mesh_instance.get_active_material(0)
-			check(flesh is BaseMaterial3D and flesh.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED, "Opaque head must occlude the far eye")
+			check(flesh is ShaderMaterial and flesh.shader == preload("res://shaders/BettaFlesh.gdshader"), "Opaque head must use the volume skin")
 	check(eye_surfaces > 0, "Eye check must inspect an actual eye surface")
 	var body := skeleton.find_bone("Bone.004_Armature")
 	var tip := skeleton.find_bone("Bone.043_Armature")

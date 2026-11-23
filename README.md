@@ -13,6 +13,10 @@ The [corner-motion nightflight](docs/CORNER_NIGHTFLIGHT.md) continues this rig
 with turns in three dimensions, preparatory fin folding, and a committed exit
 from the glass. It includes repeatable before/after footage and corner tests.
 
+The [body-volume rework](docs/BODY_VOLUME_REWORK.md) replaces planar torso
+motion and linear transform blending with compound flex/torsion and dual
+quaternion skinning, including an inspection with the fins hidden.
+
 ## Current scaffold
 
 - Godot 4 aquarium scene using the mobile-friendly Compatibility renderer.
