@@ -18,6 +18,8 @@ var skeleton: Skeleton3D
 var swim_modifier: SkeletonModifier3D
 var membrane_materials: Array[ShaderMaterial] = []
 var fin_clock := 0.0
+var maneuver_target := 0.0
+var maneuver_fold := 0.0
 
 func attach_to(host: Node3D) -> bool:
 	var scene := _load_first_model()
@@ -65,12 +67,19 @@ func attach_to(host: Node3D) -> bool:
 
 func _process(delta: float) -> void:
 	fin_clock += minf(delta, 0.1)
+	var response := 12.0 if maneuver_target > maneuver_fold else 3.5
+	maneuver_fold = lerpf(maneuver_fold, maneuver_target, 1.0 - exp(-response * minf(delta, 0.1)))
 	for material in membrane_materials:
 		material.set_shader_parameter("fin_clock", fin_clock)
+		material.set_shader_parameter("maneuver_fold", maneuver_fold)
 
-func set_swim_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float, pivot_bend := 0.0) -> void:
+func set_swim_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float, pivot_bend := 0.0, pivot_pitch := 0.0) -> void:
 	if swim_modifier:
-		swim_modifier.set_motion(speed_ratio, yaw_rate, pitch_rate, rate, pivot_bend)
+		swim_modifier.set_motion(speed_ratio, yaw_rate, pitch_rate, rate, pivot_bend, pivot_pitch)
+	# Filter deployment separately from body rotation: fold on preparation,
+	# then let the fan reopen after the skeleton releases its stored bend.
+	# _process owns the response so it is independent of physics tick rate.
+	maneuver_target = clampf(Vector2(pivot_bend, pivot_pitch).length() / 1.8, 0.0, 1.0)
 	for material in membrane_materials:
 		material.set_shader_parameter("flow_speed", speed_ratio)
 		material.set_shader_parameter("turn_drag", clampf(yaw_rate, -2.0, 2.0))

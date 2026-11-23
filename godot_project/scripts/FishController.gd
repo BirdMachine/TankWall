@@ -34,6 +34,8 @@ var pause_time := 0.0
 var next_pause := 4.0
 var thrust_effort := 0.6
 var pivot = PivotMotion.new()
+var departure_distance := 0.0
+var transported_dorsal := Vector3.UP
 
 func _ready() -> void:
 	rng.seed = Time.get_ticks_usec() + get_instance_id() * 7919
@@ -91,6 +93,11 @@ func _physics_process(delta: float) -> void:
 	var previous_heading := heading
 	var previous_speed := speed
 	var target := follow_target if follow_active else wander_target
+	# Keep the exit course long enough to clear the glass. Otherwise a held
+	# corner target immediately asks for a second reversal before the tail has
+	# followed the first, creating a visible back-and-forth twitch.
+	if departure_distance > 0.0:
+		target = position + pivot.goal * 2.0
 	var to_target := target - position
 
 	if not follow_active and (retarget_time <= 0.0 or to_target.length() < 0.5):
@@ -109,13 +116,18 @@ func _physics_process(delta: float) -> void:
 			avoidance[axis] = 1.0 - smoothstep(swim_bounds_min[axis], swim_bounds_min[axis] + margin, ahead[axis])
 			avoidance[axis] -= smoothstep(swim_bounds_max[axis] - margin, swim_bounds_max[axis], ahead[axis])
 		desired_heading = (desired_heading + avoidance * 2.4).normalized()
+		if departure_distance > 0.0:
+			desired_heading = pivot.goal
 		# Commit a reversal before translating around a broad waypoint arc.
 		# Hold its destination during the manoeuvre so avoidance cannot reverse
 		# steering every frame. Small corrections retain the cruising gait.
 		if not pivot.active() and pivot.cooldown <= 0.0 and (follow_active or pause_time <= 0.0):
-			var horizontal_error := Vector2(heading.x, heading.z).angle_to(Vector2(desired_heading.x, desired_heading.z))
-			if absf(horizontal_error) > 1.25 and absf(desired_heading.y) < 0.80:
+			# A floor/ceiling or diagonal corner needs the same short manoeuvre
+			# as a horizontal wall. Use the full 3D error, including steep turns.
+			if heading.angle_to(desired_heading) > 1.25:
 				pivot.begin(heading, desired_heading, turn_rate)
+				if _forward_clearance(heading) < 0.4:
+					departure_distance = minf(0.40, (swim_bounds_max - swim_bounds_min).length() * 0.12)
 		if not pivot.active():
 			var pause_gain := 0.2 if pause_time > 0.0 and not follow_active else 1.0
 			_turn_heading_toward(desired_heading, turn_rate * pause_gain * (1.2 if follow_active else 1.0), delta)
@@ -147,10 +159,20 @@ func _physics_process(delta: float) -> void:
 	if pivot.active():
 		heading = pivot.heading
 		desired_heading = pivot.goal
+	# Reserve room for the nose before contact, including during a committed
+	# pivot. The bounds describe the head pivot, not a mesh collision hull.
+	# A follow target on the glass must not tow the fish through it or force
+	# the position clamp to manufacture a sideways step.
+	var clearance := _forward_clearance(heading)
+	var braking := maxf(acceleration * 3.5, cruise_speed * 3.0)
+	var safe_speed := sqrt(2.0 * braking * maxf(0.0, clearance - 0.025))
+	speed = minf(speed, minf(safe_speed, clearance / maxf(delta, 0.0001)))
 
 	# Propulsion is always along the fish's nose. This is the key distinction
 	# from the old prototype, which visually slid a flapping model through space.
 	position += heading * speed * delta
+	if not pivot.active():
+		departure_distance = maxf(0.0, departure_distance - speed * delta)
 	var turn_axis := previous_heading.cross(heading)
 	var angular_step := previous_heading.angle_to(heading) / maxf(delta, 0.0001)
 	yaw_rate = lerpf(yaw_rate, turn_axis.normalized().y * angular_step, 1.0 - exp(-8.0 * delta))
@@ -177,16 +199,27 @@ func _apply_swim_orientation(delta: float) -> void:
 		return
 
 	# Construct a stable body frame where local +X is the nose and +Y is dorsal.
-	var up_reference := Vector3.UP
-	if absf(heading.dot(up_reference)) > 0.94:
-		up_reference = Vector3.FORWARD
+	# Parallel transport the dorsal direction through a steep turn. Switching
+	# reference axes at a fixed pitch threshold caused a sudden 90-degree roll.
+	var up_reference := transported_dorsal.slide(heading)
+	if up_reference.length_squared() < 0.0001:
+		up_reference = Vector3.FORWARD.slide(heading)
+	up_reference = up_reference.normalized()
+	var upright := Vector3.UP.slide(heading)
+	if upright.length_squared() > 0.06:
+		upright = upright.normalized()
+		# Recover dorsal-up gradually after a dive; do not flip a transported
+		# frame instantaneously when its dorsal vector points downward.
+		up_reference = up_reference.slerp(upright, 1.0 - exp(-1.8 * delta)).normalized()
+	transported_dorsal = up_reference
 	var side := heading.cross(up_reference).normalized()
 	var dorsal := side.cross(heading).normalized()
 
 	# Bank into turns. The error is measured before the next steering step so a
 	# broad course correction produces a visible, Betta-like sweeping roll.
-	var yaw_error := heading.cross(desired_heading).dot(Vector3.UP)
-	var bank := clampf(-yaw_error * 0.25, -0.12, 0.12)
+	# Actual turn motion retains a bank throughout a committed pivot; desired
+	# heading error disappears as soon as the turn has been completed.
+	var bank := clampf(-yaw_rate * 0.075, -0.20, 0.20)
 	var target_basis := Basis(heading, dorsal, side)
 	target_basis = target_basis.rotated(heading, bank)
 
@@ -199,7 +232,20 @@ func _update_animation_speed() -> void:
 	var ratio := thrust_effort
 	# Cadence and body flex respond to speed; sustained curvature responds to
 	# actual angular velocity rather than oscillating the entire model root.
-	rig_adapter.set_swim_motion(ratio, yaw_rate, pitch_rate, animation_rate, pivot.bend)
+	# Project the stored C bend onto the rendered fish's local turn plane.
+	# A vertical pivot flexes vertically instead of reusing a horizontal curl.
+	var bend_axis: Vector3 = pivot.axis * absf(pivot.bend)
+	rig_adapter.set_swim_motion(ratio, yaw_rate, pitch_rate, animation_rate,
+		bend_axis.dot(basis.y), bend_axis.dot(basis.z))
+
+func _forward_clearance(direction: Vector3) -> float:
+	var distance := INF
+	for axis in 3:
+		if absf(direction[axis]) < 0.00001:
+			continue
+		var wall: float = swim_bounds_max[axis] if direction[axis] > 0.0 else swim_bounds_min[axis]
+		distance = minf(distance, maxf(0.0, (wall - position[axis]) / direction[axis]))
+	return distance
 
 func _pick_wander_target() -> void:
 	wander_target = Vector3(
