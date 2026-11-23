@@ -1,4 +1,5 @@
 extends SkeletonModifier3D
+signal pose_updated
 ## BlueMesh-specific, rest-relative swim rig. No baked root motion or skin changes.
 ## Skeleton coordinates: -Y nose, +Z dorsal, X lateral. Local axes are derived
 ## from global rests: the fin bones do NOT all share the body's local axes.
@@ -25,6 +26,7 @@ var rests: Array[Transform3D] = []
 var lateral_axes: Array[Vector3] = []
 var pitch_axes: Array[Vector3] = []
 var cup_axes: Array[Vector3] = []
+var twist_axes: Array[Vector3] = []
 var rest_origins: Array[Vector3] = []
 var ray_angles := PackedFloat32Array()
 var spine: Array[int] = []
@@ -53,6 +55,7 @@ func configure(skeleton: Skeleton3D) -> bool:
 		lateral_axes.append((global_rest.basis.inverse() * Vector3(0, 0, 1)).normalized())
 		pitch_axes.append((global_rest.basis.inverse() * Vector3(1, 0, 0)).normalized())
 		cup_axes.append((global_rest.basis.inverse() * Vector3(0, 1, 0)).normalized())
+		twist_axes.append((global_rest.basis.inverse() * Vector3(0, 1, 0)).normalized())
 		var bone_name := skeleton.get_bone_name(i)
 		var parent := skeleton.get_bone_parent(i)
 		if FIN_ROOTS.has(bone_name):
@@ -92,8 +95,14 @@ func advance_swim(delta: float) -> void:
 	elapsed += dt
 	phase = fmod(phase + dt * TAU * (0.32 + 1.05 * effort) * cadence_scale, TAU)
 	var maneuver := Vector2(pivot_load, pivot_pitch_load).length()
-	var drive := (0.055 + 0.52 * clampf(effort, 0.0, 1.4)) * (1.0 - 0.70 * clampf(maneuver, 0.0, 1.0))
+	# Quiet the repetitive whole-body wag at low effort. A short power stroke
+	# followed by a coast makes the torso lead, with motion growing aft.
+	var stroke := smoothstep(-0.25, 0.55, sin(phase))
+	var drive := (0.025 + 0.38 * clampf(effort, 0.0, 1.4)) * lerpf(0.35, 1.0, stroke)
+	drive *= 1.0 - 0.70 * clampf(maneuver, 0.0, 1.0)
 	var absolute_yaw := PackedFloat32Array()
+	var absolute_pitch := PackedFloat32Array()
+	var absolute_twist := PackedFloat32Array()
 	for j in spine.size():
 		var s := float(j) / float(spine.size() - 1)
 		# A caudally travelling wave with a quiet head and progressively larger
@@ -105,10 +114,19 @@ func advance_swim(delta: float) -> void:
 		absolute_yaw.append(yaw)
 		var parent_yaw := 0.0 if j == 0 else absolute_yaw[j - 1]
 		var bend := Quaternion(lateral_axes[spine[j]], yaw - parent_yaw)
-		var previous_s := 0.0 if j == 0 else float(j - 1) / float(spine.size() - 1)
-		var pitch_curve := pivot_pitch_load * (pow(s, 1.10) - pow(previous_s, 1.10))
-		var pitch := Quaternion(pitch_axes[spine[j]], pitch_curve - pitch_load * 0.045 * s)
-		skeleton.set_bone_pose_rotation(spine[j], rests[spine[j]].basis.get_rotation_quaternion() * bend * pitch)
+		# Pitch and torsion vary along the torso, rather than rotating one flat
+		# fan as a rigid object. Steering loads these modes; cruising stays quiet.
+		var pitch_angle := pivot_pitch_load * pow(s, 1.10) - pitch_load * 0.14 * s
+		pitch_angle += pivot_load * 0.18 * sin(s * PI)
+		pitch_angle += drive * 0.16 * s * s * sin(phase - s * 3.8 + 0.9)
+		var twist_angle := (turn_load * 0.18 + pivot_load * 0.35) * sin(s * PI)
+		twist_angle += pivot_pitch_load * 0.10 * sin(s * PI)
+		twist_angle += drive * 0.15 * s * sin(phase - s * 3.8 - 0.7)
+		absolute_pitch.append(pitch_angle)
+		absolute_twist.append(twist_angle)
+		var pitch := Quaternion(pitch_axes[spine[j]], pitch_angle - (0.0 if j == 0 else absolute_pitch[j - 1]))
+		var twist := Quaternion(twist_axes[spine[j]], twist_angle - (0.0 if j == 0 else absolute_twist[j - 1]))
+		skeleton.set_bone_pose_rotation(spine[j], rests[spine[j]].basis.get_rotation_quaternion() * bend * pitch * twist)
 	if dt > 0.0:
 		spine_velocity = (absolute_yaw[-1] - previous_spine[-1]) / dt
 	previous_spine = absolute_yaw
@@ -170,3 +188,4 @@ func advance_swim(delta: float) -> void:
 			rotation_delta *= Quaternion(cup_axes[i], cups[i])
 			rotation_delta *= Quaternion(pitch_axes[i], fold_angle)
 		skeleton.set_bone_pose_rotation(i, rests[i].basis.get_rotation_quaternion() * rotation_delta)
+	pose_updated.emit()

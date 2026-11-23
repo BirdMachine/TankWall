@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled, depth_prepass_alpha;
+#include "res://shaders/BettaDualQuaternion.gdshaderinc"
 
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap, repeat_enable;
 uniform vec4 tint : source_color = vec4(1.0);
@@ -7,6 +8,7 @@ uniform float fin_clock = 0.0;
 uniform float flow_speed = 0.5;
 uniform float turn_drag = 0.0;
 uniform float maneuver_fold = 0.0;
+uniform float review_visibility = 1.0;
 
 void vertex() {
 	// Fine membrane waves between the original ray bones. Skinning supplies
@@ -51,12 +53,13 @@ void vertex() {
 	float dy = amplitude * mask * (-2.0 * cos(phase) - 1.584 * cos(ripple));
 	float dz = amplitude * mask * (2.8 * cos(phase) - 1.44 * cos(ripple));
 	NORMAL = normalize(vec3(NORMAL.x, NORMAL.y - dy * NORMAL.x, NORMAL.z - dz * NORMAL.x));
+	skin_volume(VERTEX, NORMAL, TANGENT, BINORMAL, CUSTOM1, CUSTOM0);
 }
 
 void fragment() {
 	vec4 tex = texture(albedo_texture, UV);
 	ALBEDO = tex.rgb * tint.rgb;
-	ALPHA = tex.a;
+	ALPHA = tex.a * review_visibility;
 	METALLIC = 0.12;
 	ROUGHNESS = 0.46;
 }

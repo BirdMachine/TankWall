@@ -20,6 +20,7 @@ var membrane_materials: Array[ShaderMaterial] = []
 var fin_clock := 0.0
 var maneuver_target := 0.0
 var maneuver_fold := 0.0
+var volume_skins: Array = []
 
 func attach_to(host: Node3D) -> bool:
 	var scene := _load_first_model()
@@ -61,9 +62,14 @@ func attach_to(host: Node3D) -> bool:
 		model_root.queue_free()
 		return false
 	skeleton.add_child(swim_modifier)
-	membrane_materials = SurfaceBuilder.prepare(model_root, skeleton, swim_modifier)
+	membrane_materials = SurfaceBuilder.prepare(model_root, skeleton, swim_modifier, volume_skins)
+	swim_modifier.pose_updated.connect(_update_skinning)
 
 	return true
+
+func _update_skinning() -> void:
+	for driver in volume_skins:
+		driver.update_pose()
 
 func _process(delta: float) -> void:
 	fin_clock += minf(delta, 0.1)
@@ -107,6 +113,10 @@ func set_body_tint(color: Color) -> void:
 	_apply_tint_recursive(model_root, color)
 	for material in membrane_materials:
 		material.set_shader_parameter("tint", color)
+	for driver in volume_skins:
+		if "eyes" not in String(driver.instance.name).to_lower():
+			for material in driver.materials:
+				material.set_shader_parameter("tint", color)
 
 func _apply_tint_recursive(node: Node, color: Color) -> void:
 	if node is MeshInstance3D and "eye" not in node.name.to_lower():

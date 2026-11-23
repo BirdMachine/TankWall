@@ -17,6 +17,7 @@ def main():
     parser.add_argument('--project', type=Path, default=Path(__file__).resolve().parents[1] / 'godot_project')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--label', default='NIGHTFLIGHT')
+    parser.add_argument('--script', default='CornerShowcase.gd')
     args = parser.parse_args()
     output = args.output.resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -30,7 +31,7 @@ def main():
         subprocess.run([args.godot, '--headless', '--editor', '--path', str(project), '--quit'], check=True)
         subprocess.run([args.godot, '--path', str(project), '--fixed-fps', '30',
                         '--resolution', '720x720', '--write-movie', str(output),
-                        '--script', 'res://scripts/CornerShowcase.gd', '--', '--label=' + args.label], check=True)
+                        '--script', 'res://scripts/' + args.script, '--', '--label=' + args.label], check=True)
 
 
 if __name__ == '__main__':
