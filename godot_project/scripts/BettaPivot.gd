@@ -13,6 +13,7 @@ var duration := 0.65
 var bend := 0.0
 var heading := Vector3.RIGHT
 var turn_sign := 1.0
+var peak_bend := 1.8
 
 func active() -> bool:
 	return stage != "cruise"
@@ -21,6 +22,8 @@ func begin(from: Vector3, toward: Vector3, rate: float) -> void:
 	start_heading = from.normalized()
 	goal = toward.normalized()
 	angle = start_heading.angle_to(goal)
+	# Small corrections must not load the same deep C as a full reversal.
+	peak_bend = clampf(angle * 0.58, 0.55, 1.80)
 	axis = start_heading.cross(goal)
 	if axis.length_squared() < 0.00001:
 		axis = Vector3.UP.slide(start_heading)
@@ -45,19 +48,19 @@ func advance(delta: float, speed: float, cruise_speed: float) -> void:
 				stage = "curl"
 				clock = 0.0
 		"curl":
-			bend = turn_sign * 1.80 * smoothstep(0.0, 0.16, clock)
+			bend = turn_sign * peak_bend * smoothstep(0.0, 0.16, clock)
 			if clock >= 0.16:
 				stage = "pivot"
 				clock = 0.0
 		"pivot":
 			var u := clampf(clock / duration, 0.0, 1.0)
 			heading = start_heading.rotated(axis, angle * smoothstep(0.0, 1.0, u)).normalized()
-			bend = turn_sign * 1.80 * (1.0 - 0.72 * smoothstep(0.40, 1.0, u))
+			bend = turn_sign * peak_bend * (1.0 - 0.72 * smoothstep(0.40, 1.0, u))
 			if u >= 1.0:
 				stage = "release"
 				clock = 0.0
 		"release":
-			bend = turn_sign * 0.504 * (1.0 - smoothstep(0.0, 0.36, clock))
+			bend = turn_sign * peak_bend * 0.28 * (1.0 - smoothstep(0.0, 0.36, clock))
 			if clock >= 0.36:
 				stage = "cruise"
 				bend = 0.0

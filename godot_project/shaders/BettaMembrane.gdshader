@@ -6,6 +6,7 @@ uniform vec4 tint : source_color = vec4(1.0);
 uniform float fin_clock = 0.0;
 uniform float flow_speed = 0.5;
 uniform float turn_drag = 0.0;
+uniform float maneuver_fold = 0.0;
 
 void vertex() {
 	// Fine membrane waves between the original ray bones. Skinning supplies
@@ -14,7 +15,7 @@ void vertex() {
 	float mask = COLOR.r * COLOR.r;
 	float rest_y = COLOR.b * 6.5 - 0.5;
 	float rest_z = COLOR.g * 5.8 - 4.2;
-	float deploy = clamp(0.87 - flow_speed * 0.28 - abs(turn_drag) * 0.18
+	float deploy = clamp(0.87 - flow_speed * 0.28 - abs(turn_drag) * 0.18 - maneuver_fold * 0.32
 		+ 0.20 * sin(fin_clock * 1.6 + COLOR.a * 2.0), 0.25, 1.0);
 	float anchor_z = -0.38 * clamp(rest_y - 0.4, 0.0, 3.0);
 	if (COLOR.a < 0.3) {

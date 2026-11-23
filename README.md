@@ -9,6 +9,10 @@ traveling torso flexion, steering curvature and spring-driven fin chains on the
 existing 53-joint BlueMesh betta. The Android Swim Beta export preset installs
 beside regular TankWall. See [research, implementation and validation notes](docs/FISHY_SWIMMING_BETA.md).
 
+The [corner-motion nightflight](docs/CORNER_NIGHTFLIGHT.md) continues this rig
+with turns in three dimensions, preparatory fin folding, and a committed exit
+from the glass. It includes repeatable before/after footage and corner tests.
+
 ## Current scaffold
 
 - Godot 4 aquarium scene using the mobile-friendly Compatibility renderer.

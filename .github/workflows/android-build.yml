@@ -57,6 +57,9 @@ jobs:
       - name: Build debug APK
         run: bash scripts/build-android-debug.sh
 
+      - name: Build separate swim beta
+        run: godot --headless --path godot_project --export-debug "Android Swim Beta" build/android/TankWall-Fishy-Beta.apk
+
       - name: Verify APK
         run: |
           test -f godot_project/build/android/TankWall-debug.apk
@@ -66,6 +69,7 @@ jobs:
         run: |
           godot --headless --path godot_project --script res://tests/test_swim.gd
           godot --headless --path godot_project --script res://tests/test_pivot.gd
+          godot --headless --path godot_project --script res://tests/test_corners.gd
           godot --headless --fixed-fps 60 --path godot_project --script res://tests/diagnose_runtime.gd
 
       - name: Upload TankWall APK
@@ -73,5 +77,13 @@ jobs:
         with:
           name: TankWall-debug-apk
           path: godot_project/build/android/TankWall-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload swim beta APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TankWall-nightflight-beta
+          path: godot_project/build/android/TankWall-Fishy-Beta.apk
           if-no-files-found: error
           retention-days: 14

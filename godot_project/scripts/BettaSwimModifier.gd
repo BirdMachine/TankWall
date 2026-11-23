@@ -19,6 +19,7 @@ var effort := 0.5
 var turn_load := 0.0
 var pitch_load := 0.0
 var pivot_load := 0.0
+var pivot_pitch_load := 0.0
 var cadence_scale := 1.0
 var rests: Array[Transform3D] = []
 var lateral_axes: Array[Vector3] = []
@@ -70,12 +71,13 @@ func configure(skeleton: Skeleton3D) -> bool:
 	previous_spine.resize(spine.size())
 	return true
 
-func set_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float, pivot_bend := 0.0) -> void:
+func set_motion(speed_ratio: float, yaw_rate: float, pitch_rate: float, rate: float, pivot_bend := 0.0, pivot_pitch := 0.0) -> void:
 	effort = clampf(speed_ratio, 0.0, 1.8)
 	turn_load = clampf(yaw_rate, -2.6, 2.6)
 	pitch_load = clampf(pitch_rate, -1.0, 1.0)
 	cadence_scale = rate
 	pivot_load = clampf(pivot_bend, -1.9, 1.9)
+	pivot_pitch_load = clampf(pivot_pitch, -1.9, 1.9)
 
 func _process_modification() -> void:
 	# _process_modification is supported by Godot 4.3–4.5 as well as newer builds.
@@ -89,7 +91,8 @@ func advance_swim(delta: float) -> void:
 	var dt := clampf(delta, 0.0, 0.1)
 	elapsed += dt
 	phase = fmod(phase + dt * TAU * (0.32 + 1.05 * effort) * cadence_scale, TAU)
-	var drive := (0.055 + 0.52 * clampf(effort, 0.0, 1.4)) * (1.0 - 0.70 * clampf(absf(pivot_load), 0.0, 1.0))
+	var maneuver := Vector2(pivot_load, pivot_pitch_load).length()
+	var drive := (0.055 + 0.52 * clampf(effort, 0.0, 1.4)) * (1.0 - 0.70 * clampf(maneuver, 0.0, 1.0))
 	var absolute_yaw := PackedFloat32Array()
 	for j in spine.size():
 		var s := float(j) / float(spine.size() - 1)
@@ -102,7 +105,9 @@ func advance_swim(delta: float) -> void:
 		absolute_yaw.append(yaw)
 		var parent_yaw := 0.0 if j == 0 else absolute_yaw[j - 1]
 		var bend := Quaternion(lateral_axes[spine[j]], yaw - parent_yaw)
-		var pitch := Quaternion(pitch_axes[spine[j]], -pitch_load * 0.045 * s)
+		var previous_s := 0.0 if j == 0 else float(j - 1) / float(spine.size() - 1)
+		var pitch_curve := pivot_pitch_load * (pow(s, 1.10) - pow(previous_s, 1.10))
+		var pitch := Quaternion(pitch_axes[spine[j]], pitch_curve - pitch_load * 0.045 * s)
 		skeleton.set_bone_pose_rotation(spine[j], rests[spine[j]].basis.get_rotation_quaternion() * bend * pitch)
 	if dt > 0.0:
 		spine_velocity = (absolute_yaw[-1] - previous_spine[-1]) / dt
@@ -128,6 +133,10 @@ func advance_swim(delta: float) -> void:
 			target = side * (0.16 + 0.24 * sin(elapsed * 15.0 - depth * 0.85 + side * 0.7))
 			target *= lerpf(1.0, 0.45, clampf(effort, 0.0, 1.0))
 			target -= turn_load * 0.09
+			# Unequal paddle strokes start with the preparatory C bend. At zero
+			# root yaw this still reads as an intentional braking/turning stroke.
+			target -= pivot_load * 0.11
+			cup_target = pivot_pitch_load * 0.10
 		else:
 			var flutter := 0.14 if kind == "pelvic" else 0.20
 			if kind == "caudal":
@@ -139,7 +148,7 @@ func advance_swim(delta: float) -> void:
 			target += turn_load * (0.08 + depth * 0.07)
 			cup_target = (0.10 + depth * 0.055) * sin(fin_phase * 0.83 + point.z * 0.7)
 			cup_target -= turn_load * 0.07 * (1.0 + depth * 0.3)
-			var fold := clampf(0.12 + effort * 0.20 + absf(turn_load) * 0.23 + 0.10 * sin(elapsed * 1.7 - point.y), 0.0, 0.65)
+			var fold := clampf(0.12 + effort * 0.20 + absf(turn_load) * 0.23 + maneuver * 0.22 + 0.10 * sin(elapsed * 1.7 - point.y), 0.0, 0.78)
 			var fold_weight := 0.48 if depth == 0 else 0.24
 			if kind == "caudal":
 				fold_weight = 0.0 if depth == 0 else 0.5 if depth == 1 else 0.1
