@@ -30,6 +30,7 @@ var twist_axes: Array[Vector3] = []
 var rest_origins: Array[Vector3] = []
 var ray_angles := PackedFloat32Array()
 var spine: Array[int] = []
+var skull := -1
 var fin_kind: Array[String] = []
 var fin_depth: Array[int] = []
 var angles := PackedFloat32Array()
@@ -40,6 +41,10 @@ var previous_spine := PackedFloat32Array()
 var spine_velocity := 0.0
 
 func configure(skeleton: Skeleton3D) -> bool:
+	skull = skeleton.find_bone("Bone.006_Armature")
+	if skull < 0:
+		push_error("TankWall swim rig: missing independent skull branch")
+		return false
 	for bone_name in SPINE_NAMES:
 		var bone := skeleton.find_bone(bone_name)
 		if bone < 0:
@@ -103,6 +108,10 @@ func advance_swim(delta: float) -> void:
 	var absolute_yaw := PackedFloat32Array()
 	var absolute_pitch := PackedFloat32Array()
 	var absolute_twist := PackedFloat32Array()
+	# Let the front lead a turn modestly, while keeping skull, eyes and jaw on
+	# the same frame. The source skull is a sibling of the torso, not its child.
+	var front_yaw := clampf(-turn_load * 0.055 - pivot_load * 0.08, -0.22, 0.22)
+	var front_pitch := clampf(-pitch_load * 0.04 + pivot_pitch_load * 0.06, -0.14, 0.14)
 	for j in spine.size():
 		var s := float(j) / float(spine.size() - 1)
 		# A caudally travelling wave with a quiet head and progressively larger
@@ -110,13 +119,14 @@ func advance_swim(delta: float) -> void:
 		var yaw := drive * (0.045 + pow(s, 1.55)) * sin(phase - s * 3.8)
 		# A preparatory C bend exists before root yaw starts. It unwinds
 		# through the pivot instead of being a side effect of angular speed.
-		yaw -= turn_load * 0.16 * pow(s, 1.4) + pivot_load * pow(s, 1.10)
+		yaw += front_yaw * (1.0 - s)
+		yaw -= turn_load * 0.16 * pow(s, 1.4) + pivot_load * pow(s, 0.88)
 		absolute_yaw.append(yaw)
 		var parent_yaw := 0.0 if j == 0 else absolute_yaw[j - 1]
 		var bend := Quaternion(lateral_axes[spine[j]], yaw - parent_yaw)
 		# Pitch and torsion vary along the torso, rather than rotating one flat
 		# fan as a rigid object. Steering loads these modes; cruising stays quiet.
-		var pitch_angle := pivot_pitch_load * pow(s, 1.10) - pitch_load * 0.14 * s
+		var pitch_angle := front_pitch * (1.0 - s) + pivot_pitch_load * pow(s, 0.88) - pitch_load * 0.14 * s
 		pitch_angle += pivot_load * 0.18 * sin(s * PI)
 		pitch_angle += drive * 0.16 * s * s * sin(phase - s * 3.8 + 0.9)
 		var twist_angle := (turn_load * 0.18 + pivot_load * 0.35) * sin(s * PI)
@@ -127,6 +137,11 @@ func advance_swim(delta: float) -> void:
 		var pitch := Quaternion(pitch_axes[spine[j]], pitch_angle - (0.0 if j == 0 else absolute_pitch[j - 1]))
 		var twist := Quaternion(twist_axes[spine[j]], twist_angle - (0.0 if j == 0 else absolute_twist[j - 1]))
 		skeleton.set_bone_pose_rotation(spine[j], rests[spine[j]].basis.get_rotation_quaternion() * bend * pitch * twist)
+	# Match the skull's global angular delta to the anterior torso. Leaving
+	# this independent branch still would shear the eye/mouth junction.
+	var skull_yaw := Quaternion(lateral_axes[skull], absolute_yaw[0])
+	var skull_pitch := Quaternion(pitch_axes[skull], absolute_pitch[0])
+	skeleton.set_bone_pose_rotation(skull, rests[skull].basis.get_rotation_quaternion() * skull_yaw * skull_pitch)
 	if dt > 0.0:
 		spine_velocity = (absolute_yaw[-1] - previous_spine[-1]) / dt
 	previous_spine = absolute_yaw

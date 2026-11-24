@@ -11,6 +11,7 @@ uniform bool use_surface_map = false;
 uniform float normal_depth = 1.0;
 uniform float surface_roughness = 0.46;
 uniform float surface_metallic = 0.12;
+uniform float wet_style = 1.0;
 
 void vertex() {
 	skin_volume(VERTEX, NORMAL, TANGENT, BINORMAL, CUSTOM1, CUSTOM0);
@@ -25,6 +26,10 @@ void fragment() {
 		ROUGHNESS *= surface.g;
 		METALLIC *= surface.b;
 	}
+	// Retain scale colour/texture while softening the coarse surface response.
+	float polished = mix(0.26, clamp(ROUGHNESS * 0.65, 0.16, 0.40), 0.35);
+	ROUGHNESS = mix(ROUGHNESS, polished, wet_style);
+	CLEARCOAT = wet_style * 0.55;
 	if (use_normal_map) {
 		NORMAL_MAP = texture(normal_texture, UV).rgb;
 		NORMAL_MAP_DEPTH = normal_depth;

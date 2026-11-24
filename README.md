@@ -17,6 +17,11 @@ The [body-volume rework](docs/BODY_VOLUME_REWORK.md) replaces planar torso
 motion and linear transform blending with compound flex/torsion and dual
 quaternion skinning, including an inspection with the fins hidden.
 
+The [front-flex and wet-skin pass](docs/FRONT_FLEX_WET_SKIN.md) adds a small
+anterior bend with coherent head motion and a smoother, coated body material.
+Its [model-source investigation](docs/BETTA_MODEL_PROVENANCE.md) records the
+archived BETTA 120Hz asset inventory and independently available alternatives.
+
 ## Current scaffold
 
 - Godot 4 aquarium scene using the mobile-friendly Compatibility renderer.
