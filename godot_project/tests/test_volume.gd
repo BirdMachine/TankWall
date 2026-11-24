@@ -53,10 +53,19 @@ func _run() -> void:
 	var minimum_ratio := INF
 	var maximum_ratio := 0.0
 	var maximum_twist := 0.0
+	var maximum_front_angle := 0.0
 	for pose in [Vector2(1.8, 0.0), Vector2(-1.8, 0.0), Vector2(1.2, 0.9), Vector2(-1.2, -0.9)]:
 		modifier.set_motion(0.1, pose.x * 0.5, 0.25, 1.0, pose.x, pose.y)
 		for frame in 30:
 			modifier.advance_swim(1.0 / 60.0)
+			var skull_pose: Basis = adapter.skeleton.get_bone_global_pose(modifier.skull).basis
+			var skull_rest: Basis = adapter.skeleton.get_bone_global_rest(modifier.skull).basis
+			var front_pose: Basis = adapter.skeleton.get_bone_global_pose(modifier.spine[0]).basis
+			var front_rest: Basis = adapter.skeleton.get_bone_global_rest(modifier.spine[0]).basis
+			var skull_delta := (skull_pose * skull_rest.inverse()).get_rotation_quaternion()
+			var front_delta := (front_pose * front_rest.inverse()).get_rotation_quaternion()
+			check(skull_delta.angle_to(front_delta) < 0.002, "Skull/eye branch separated from the anterior torso")
+			maximum_front_angle = maxf(maximum_front_angle, Quaternion.IDENTITY.angle_to(front_delta))
 		for pair in pairs:
 			var deformed: Array[Vector3] = []
 			for i in [pair.x, pair.y]:
@@ -71,7 +80,9 @@ func _run() -> void:
 	check(minimum_ratio > 0.85, "Actual torso cross-section collapsed during compound bending")
 	check(maximum_ratio < 1.20, "Actual torso cross-section inflated excessively")
 	check(maximum_twist > 0.12, "Torso remains constrained to one lateral bend plane")
+	check(maximum_front_angle > 0.08 and maximum_front_angle < 0.4, "Front should articulate modestly during a turn")
 	print("Volume regression: pairs=", pairs.size(), " rest error=", rest_error,
-		" thickness ratio=", minimum_ratio, "..", maximum_ratio, " local torsion=", maximum_twist, " failures=", failures)
+		" thickness ratio=", minimum_ratio, "..", maximum_ratio, " local torsion=", maximum_twist,
+		" front angle=", maximum_front_angle, " failures=", failures)
 	fish.free()
 	quit(1 if failures else 0)

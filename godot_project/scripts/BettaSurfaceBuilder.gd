@@ -29,6 +29,8 @@ static func _prepare_recursive(node: Node, skeleton: Skeleton3D, modifier: Skele
 					eye.set_shader_parameter("surface_metallic", 0.05)
 					eye.set_shader_parameter("surface_roughness", 0.24)
 					eye.set_shader_parameter("use_surface_map", false)
+					eye.set_shader_parameter("wet_style", 0.0)
+					eye.set_shader_parameter("normal_depth", source.normal_scale)
 					eyes.surface_set_material(eyes.get_surface_count() - 1, eye)
 			node.mesh = eyes
 			node.custom_aabb = eyes.get_aabb().grow(1.5)

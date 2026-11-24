@@ -31,7 +31,7 @@ static func flesh_material(source: StandardMaterial3D) -> ShaderMaterial:
 	result.set_shader_parameter("surface_texture", source.metallic_texture)
 	result.set_shader_parameter("use_surface_map", source.metallic_texture != null)
 	result.set_shader_parameter("use_normal_map", source.normal_enabled and source.normal_texture != null)
-	result.set_shader_parameter("normal_depth", source.normal_scale)
+	result.set_shader_parameter("normal_depth", source.normal_scale * 0.28)
 	result.set_shader_parameter("surface_roughness", source.roughness)
 	result.set_shader_parameter("surface_metallic", source.metallic)
 	result.set_shader_parameter("tint", source.albedo_color)
