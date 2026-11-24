@@ -18,7 +18,7 @@ The bundle contains four Mesh objects:
 | `Triangle` | UI mesh |
 
 There is one SkinnedMeshRenderer with 120 bones and no blend-shape channels.
-Fourteen fish materials use `v2-*` names, alongside multiple `bettaV2-*`
+Thirteen fish materials use `v2-*` names, alongside multiple `bettaV2-*`
 color/specular texture variants. Script metadata includes MagicaCloth2; a
 serialized `MagicaCloth` component is enabled on `mc (2)`. This establishes
 the component's presence/enabled flag, not its hierarchy activation, exact
