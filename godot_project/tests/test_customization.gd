@@ -82,8 +82,14 @@ func run() -> void:
 	var hud = main.get_node("AeroHUD")
 	var original_camera: Transform3D = main.get_node("Camera3D").transform
 	hud._show_looks()
+	var original_bounds: Vector3 = main.fish_nodes[0].swim_bounds_min
 	hud._process(0.016)
+	main._configure_swim_bounds()
+	check(main.get_node("Camera3D").transform.is_equal_approx(original_camera), "Live preview moved the bounds camera")
+	check(main.fish_nodes[0].swim_bounds_min.is_equal_approx(original_bounds), "Live preview changed the swimming area")
+	check(root.get_camera_3d() == hud.preview_camera, "Preview did not select its own camera")
 	hud.modal.hide()
+	check(root.get_camera_3d() == main.get_node("Camera3D"), "Closing preview did not restore the tank view")
 	check(main.get_node("Camera3D").transform.is_equal_approx(original_camera), "Closing live preview did not restore the camera")
 	hud._show_looks()
 	var picker = hud.modal_body.get_node("fish_base")

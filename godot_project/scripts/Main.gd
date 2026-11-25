@@ -230,6 +230,9 @@ func set_fin_freedom(value: float) -> void:
 	care.changed.emit()
 
 func _unhandled_input(event: InputEvent) -> void:
+	var hud = get_node_or_null("AeroHUD")
+	if hud and hud.modal and hud.modal.visible:
+		return
 	if not play_mode:
 		if (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
 			for fish in fish_nodes:

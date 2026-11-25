@@ -21,9 +21,7 @@ var sparkles := 0.0
 var action_grid: GridContainer
 var status_clock := 0.0
 var preview_page := false
-var preview_camera_transform := Transform3D.IDENTITY
-var preview_camera_fov := 40.0
-var preview_camera_offset := 0.0
+var preview_camera: Camera3D
 
 func _ready() -> void:
 	call_deferred("_build")
@@ -126,7 +124,7 @@ func _process(delta: float) -> void:
 		var focus: Vector3 = fish.global_position - fish.heading * 1.0
 		var viewport_size := get_viewport().get_visible_rect().size
 		var landscape := viewport_size.x > viewport_size.y
-		var camera: Camera3D = get_parent().get_node("Camera3D")
+		var camera := preview_camera
 		camera.fov = 50.0
 		var distance := 3.0 if landscape else 7.0
 		camera.position = focus + Vector3(0, 0, distance)
@@ -348,20 +346,22 @@ func _show_lighting() -> void:
 	_button(modal_body, "Fish colours ›", _show_looks, 50)
 
 func _begin_preview() -> void:
-	var camera: Camera3D = get_parent().get_node("Camera3D")
-	preview_camera_transform = camera.transform
-	preview_camera_fov = camera.fov
-	preview_camera_offset = camera.h_offset
+	# Keep the production camera immutable: bounds/input still use its rays,
+	# including when orientation changes while a palette page is open.
+	preview_camera = Camera3D.new()
+	preview_camera.name = "CustomizationCamera"
+	preview_camera.transform = get_parent().get_node("Camera3D").transform
+	get_parent().add_child(preview_camera)
+	preview_camera.make_current()
 	preview_page = true
 	_layout()
 
 func _end_preview() -> void:
 	if not preview_page:
 		return
-	var camera: Camera3D = get_parent().get_node("Camera3D")
-	camera.transform = preview_camera_transform
-	camera.fov = preview_camera_fov
-	camera.h_offset = preview_camera_offset
+	get_parent().get_node("Camera3D").make_current()
+	preview_camera.queue_free()
+	preview_camera = null
 	preview_page = false
 	header.show()
 
