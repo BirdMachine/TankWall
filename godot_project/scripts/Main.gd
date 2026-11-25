@@ -213,9 +213,16 @@ func apply_fin_motion() -> void:
 	for fish in fish_nodes:
 		if fish.rig_adapter and fish.rig_adapter.get("fin_physics") != null:
 			fish.rig_adapter.live_fins = care.state.live_fins
+			fish.rig_adapter.fin_freedom = care.state.fin_freedom
 
 func set_fin_motion(enabled: bool) -> void:
 	care.state.live_fins = enabled
+	apply_fin_motion()
+	care.save()
+	care.changed.emit()
+
+func set_fin_freedom(value: float) -> void:
+	care.state.fin_freedom = clampf(value, 0.5, 2.2)
 	apply_fin_motion()
 	care.save()
 	care.changed.emit()

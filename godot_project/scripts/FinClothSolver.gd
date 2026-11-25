@@ -1,5 +1,5 @@
 extends RefCounted
-## Small animated cloth proxy, in world metres. No renderer or mesh ownership.
+## Small animated cloth proxy, in world coordinates. No renderer or mesh ownership.
 ## Chains preserve ray length; cross-links resist membrane stretch but allow folds.
 const STEP := 1.0 / 120.0
 var points := PackedVector3Array()
@@ -12,6 +12,8 @@ var fractions := PackedFloat32Array()
 var accumulator := 0.0
 var initialized := false
 var enabled := true
+var freedom := 2.2
+var deep_fraction := 1.0
 var resets := 0
 var max_offset := 0.0
 var body_start := Vector3.ZERO
@@ -41,6 +43,7 @@ func reset(targets: PackedVector3Array) -> void:
 	resets += 1
 
 func advance(delta: float, targets: PackedVector3Array, capsule_a: Vector3, capsule_b: Vector3, radius: float) -> void:
+	deep_fraction = clampf((freedom - 1.0) / 1.2, 0.0, 1.0)
 	if targets.is_empty():
 		return
 	if not enabled:
@@ -68,11 +71,13 @@ func _substep() -> void:
 		if pinned[i]:
 			points[i] = goals[i]
 			continue
-		var frequency := lerpf(12.0, 5.0, fractions[i])
+		var frequency := lerpf(lerpf(12.0, 9.0, deep_fraction), lerpf(5.0, 2.8, deep_fraction), fractions[i])
+		if freedom < 1.0:
+			frequency /= maxf(freedom, 0.5)
 		velocities[i] += (goals[i] - points[i]) * frequency * frequency * STEP
 		# Water drag damps world-space velocity, giving real travel/turn inertia.
-		velocities[i] *= exp(-4.8 * STEP)
-		points[i] += velocities[i].limit_length(2.8) * STEP
+		velocities[i] *= exp(-lerpf(4.8, 7.2, deep_fraction) * STEP)
+		points[i] += velocities[i].limit_length(lerpf(2.8, 3.5, deep_fraction)) * STEP
 	for iteration in 5:
 		for chain in chains:
 			for j in range(1, chain.size()):
@@ -81,19 +86,26 @@ func _substep() -> void:
 				_distance(a, b, goals[a].distance_to(goals[b]), 1.0)
 				var reference := (goals[b] - goals[a]).normalized()
 				var direction := (points[b] - points[a]).normalized()
-				var angle := reference.angle_to(direction)
-				var limit := lerpf(0.10, 0.72, fractions[b])
+				var limit := lerpf(lerpf(0.10, 0.18, deep_fraction), lerpf(0.72, 1.95, deep_fraction), fractions[b])
+				limit *= minf(freedom, 1.0)
 				if j == 1:
-					limit = minf(limit, 0.22)
-				if angle > limit:
-					var length := goals[a].distance_to(goals[b])
-					points[b] = points[a] + reference.slerp(direction, limit / angle) * length
+					limit = minf(limit, lerpf(0.22, 0.60, deep_fraction))
+				direction = _limited(reference, direction, limit)
+				if j >= 2 and deep_fraction > 0.0:
+					# Transport the authored local bend along the previous ray segment.
+					# This permits long curls while limiting abrupt adjacent kinks.
+					var prior_joint: int = chain[j - 2]
+					var original_parent := (goals[a] - goals[prior_joint]).normalized()
+					var current_parent := (points[a] - points[prior_joint]).normalized()
+					var transported := Quaternion(original_parent, current_parent) * reference
+					direction = _limited(transported, direction, lerpf(0.45, 0.85, fractions[b]))
+				points[b] = points[a] + direction * goals[a].distance_to(goals[b])
 		for pair in links:
 			var a: int = pair.x
 			var b: int = pair.y
 			var maximum := goals[a].distance_to(goals[b]) * 1.06
 			if points[a].distance_to(points[b]) > maximum:
-				_distance(a, b, maximum, 0.45)
+				_distance(a, b, maximum, lerpf(0.45, 0.30, deep_fraction))
 		for chain in chains:
 			for j in range(2, chain.size()):
 				_collide(chain[j])
@@ -108,7 +120,18 @@ func _substep() -> void:
 				direction = (goals[b] - goals[a]).normalized()
 			points[b] = points[a] + direction * goals[a].distance_to(goals[b])
 	for i in points.size():
-		velocities[i] = ((points[i] - previous[i]) / STEP).limit_length(2.8) if not pinned[i] else Vector3.ZERO
+		velocities[i] = ((points[i] - previous[i]) / STEP).limit_length(lerpf(2.8, 3.5, deep_fraction)) if not pinned[i] else Vector3.ZERO
+
+func _limited(reference: Vector3, direction: Vector3, limit: float) -> Vector3:
+	var angle := reference.angle_to(direction)
+	if angle <= limit:
+		return direction
+	var axis := reference.cross(direction)
+	if axis.length_squared() < 0.00000001:
+		axis = reference.cross(Vector3.UP)
+		if axis.length_squared() < 0.00000001:
+			axis = reference.cross(Vector3.RIGHT)
+	return reference.rotated(axis.normalized(), limit)
 
 func _distance(a: int, b: int, length: float, strength: float) -> void:
 	var displacement := points[b] - points[a]

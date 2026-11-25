@@ -8,6 +8,7 @@ var rays: Array = []
 var layout: Array = []
 var tip_directions := PackedVector3Array()
 var enabled := true
+var freedom := 2.2
 var neck := -1
 var tail := -1
 var modified_bones := 0
@@ -59,6 +60,7 @@ func configure(target: Skeleton3D) -> void:
 
 func apply(delta: float) -> void:
 	solver.enabled = enabled
+	solver.freedom = freedom
 	if not enabled or rays.is_empty():
 		solver.initialized = false
 		return

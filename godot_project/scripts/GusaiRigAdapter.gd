@@ -22,6 +22,7 @@ var root_rotation := Quaternion.IDENTITY
 var head_pivot := Vector3(0, 0, 3.4)
 var fin_physics = FinPhysics.new()
 var live_fins := true
+var fin_freedom := 2.2
 
 static func available(index := 0) -> bool:
 	return ResourceLoader.exists(MODELS[clampi(index, 0, 1)])
@@ -108,6 +109,7 @@ func update_pose(delta := 0.0) -> void:
 		skeleton.set_bone_pose_position(root_bone, root_position)
 		skeleton.set_bone_pose_rotation(root_bone, root_rotation)
 	fin_physics.enabled = live_fins
+	fin_physics.freedom = fin_freedom
 	fin_physics.apply(delta)
 
 func _process(delta: float) -> void:

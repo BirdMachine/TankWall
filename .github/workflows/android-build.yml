@@ -78,6 +78,7 @@ jobs:
           godot --headless --path godot_project --script res://tests/test_companion.gd
           godot --headless --path godot_project --script res://tests/test_living_tank.gd
           godot --headless --path godot_project --script res://tests/test_fin_cloth.gd
+          godot --headless --path godot_project --script res://tests/test_deep_fins.gd
           godot --headless --path godot_project --script res://tests/test_fin_rig.gd
           godot --headless --fixed-fps 60 --path godot_project --script res://tests/diagnose_runtime.gd
 
