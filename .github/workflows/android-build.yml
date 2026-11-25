@@ -122,14 +122,23 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      - name: Provide Mesa OpenGL display
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb libgl1-mesa-dri
+          Xvfb :99 -screen 0 1080x2280x24 -nolisten tcp > /tmp/tamotank-xvfb.log 2>&1 &
       - name: Check Android wallpaper lifecycle
+        env:
+          DISPLAY: ':99'
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          GALLIUM_DRIVER: llvmpipe
         uses: ReactiveCircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808
         with:
           api-level: 34
           target: default
           arch: x86_64
           profile: pixel_4
-          emulator-options: -no-window -gpu swangle -noaudio -no-boot-anim -camera-back none -no-snapshot-save
+          emulator-options: -no-window -gpu host -feature -Vulkan -noaudio -no-boot-anim -camera-back none -no-snapshot-save
           script: python3 scripts/test-android-wallpaper.py native-check/TamoTank-Emulator.apk --output native-check/results
       - name: Preserve native check evidence
         if: always()

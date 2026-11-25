@@ -81,5 +81,6 @@ The first API 34 native run passed foreground startup, wallpaper preview/frame,
 application, shared-setting reload, read-only care over the save interval,
 visibility pause, and wake survival. It failed the graphics check because the
 emulator's legacy SwiftShader GLES driver could not link even built-in Godot
-shaders (upstream Godot issue #109550). CI uses the current SwANGLE backend
-instead; keep the shader-failure assertion enabled.
+shaders (upstream Godot issue #109550). A SwANGLE follow-up linked shaders but stalled during startup; the next check
+uses Mesa software OpenGL through a virtual display, with full native logs and
+failure screenshots. Keep the shader-failure assertion enabled.

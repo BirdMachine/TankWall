@@ -49,7 +49,7 @@ try:
  adb('shell','settings','put','global','transition_animation_scale','0')
  adb('shell','settings','put','global','animator_duration_scale','0')
  adb('shell','am','start','-n',PACKAGE+'/com.godot.game.GodotApp')
- wait_for(lambda:'TamoTank: companion ready' in logs(),'foreground companion starts')
+ wait_for(lambda:'TamoTank: companion ready' in logs(),'foreground companion starts',180)
  tap_labels({'got it'})
  screenshot('companion')
  adb('shell','am','start','-a','android.service.wallpaper.CHANGE_LIVE_WALLPAPER','--ecn','android.service.wallpaper.extra.LIVE_WALLPAPER_COMPONENT',SERVICE)
@@ -87,3 +87,8 @@ try:
  (args.output/'result.json').write_text(json.dumps({'passed':True,'android':'34','checks':['foreground','preview','frame','apply','read-only care','settings refresh','visibility','wake']},indent=2))
 finally:
  (args.output/'logcat.txt').write_text(logs())
+ (args.output/'logcat-all.txt').write_text(adb('logcat','-d','-v','threadtime',check=False))
+ (args.output/'activity-state.txt').write_text(adb('shell','dumpsys','activity','activities',check=False))
+ (args.output/'memory-state.txt').write_text(adb('shell','dumpsys','meminfo',PACKAGE,check=False))
+ try:screenshot('final-state')
+ except Exception as error:print('Final screenshot unavailable:',error,flush=True)
