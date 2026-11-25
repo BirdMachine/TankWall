@@ -1,6 +1,14 @@
-# TankWall Live Wallpaper
+# TamoTank / TankWall
 
-A Godot-for-Android successor to the classic betta live wallpaper idea, built around user-selected media backgrounds, multiple fish choices, and eventually up to three fish swimming at once.
+A gentle betta companion for Android, growing toward a live wallpaper. Care is optional and additive: the resident stays safe and content while you are away.
+
+## Companion preview 0.8
+
+Name your fish, offer a snack it swims over to eat, play follow-the-finger, make the water sparkle, or settle in for a quiet rest. Shared moments grow a persistent friendship and memory book. Four soft colour tints are available. There are no declining needs, absence penalties, streaks, sickness or death.
+
+The companion APK installs separately as `com.birdmachine.tamotank.companion`. Tap the fish's name to rename it; use **Play**, then hold or drag in the water to invite it over. **Rest / Wake** changes the lighting and motion without changing progress. See [the care design and validation](docs/GENTLE_COMPANION.md).
+
+This preview uses the modified BlueMesh fish. The purchased Gusai pack is awaiting private download and rig integration; it is not included in this build.
 
 ## Fishy swimming beta
 
@@ -25,7 +33,7 @@ archived BETTA 120Hz asset inventory and independently available alternatives.
 ## Current scaffold
 
 - Godot 4 aquarium scene using the mobile-friendly Compatibility renderer.
-- Placeholder fish mesh + procedural swim controller.
+- Rigged BlueMesh fish, volumetric deformation, coated skin and procedural swimming.
 - Fish count architecture already supports 1–3 fish.
 - Settings fields prepared for solid color, image, GIF-frame, and video backgrounds.
 - Android export preset using package `com.birdmachine.tankwall`.
@@ -57,11 +65,10 @@ The first milestone is a normal Android Godot APK so we can validate rendering, 
 
 ## Near-term roadmap
 
-1. Make the placeholder aquarium APK build reproducibly in Codespaces.
+1. Integrate and review the purchased betta pack privately.
 2. Add the Android live-wallpaper service/plugin.
-3. Add the settings UI and Android file picker for solid/image/GIF/video backgrounds.
-4. Replace the placeholder fish with a licensed, properly rigged betta model.
-5. Add fish/model selection and independent behavior for up to three fish.
-6. Add battery/performance controls, touch interaction, lighting, bubbles, and optional tank dressing.
+3. Add Android background media selection.
+4. Expand optional play, memories and tank dressing.
+5. Add battery/performance controls and real-device checks.
 
 See `docs/FEATURE_SPEC.md` and `assets/model_research/BETTA_MODEL_CANDIDATES.md` as those land.

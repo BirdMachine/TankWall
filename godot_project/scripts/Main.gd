@@ -13,12 +13,28 @@ var fish_turn_rate := 1.05
 var fish_visual_scale := 1.0
 var fish_animation_rate := 1.0
 var fish_tint := Color.WHITE
+var care
+var play_mode := false
+var touch_held := false
+var companion_save_path := "user://companion.json"
 
 func _ready() -> void:
 	RenderingServer.set_default_clear_color(solid_background)
 	_spawn_fish()
 	_load_user_settings()
+	# A companion is a single resident; extra fish can return as separate tanks.
+	if fish_nodes.size() != 1:
+		fish_count = 1
+		_spawn_fish()
+	care = preload("res://scripts/PetCompanion.gd").new()
+	care.name = "Companion"
+	care.save_path = companion_save_path
+	add_child(care)
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
+
+func _process(delta: float) -> void:
+	if play_mode and touch_held and care:
+		care.follow_for(delta)
 
 func _spawn_fish() -> void:
 	for node in fish_nodes:
@@ -54,11 +70,20 @@ func _configure_swim_bounds() -> void:
 		return
 	var rect := get_viewport().get_visible_rect()
 	var points: Array[Vector3] = []
+	var top := rect.size.y * 0.18
+	var bottom := rect.size.y * 0.72
+	var left := 0.0
+	var right := rect.size.x
+	if rect.size.x > rect.size.y:
+		top = rect.size.y * 0.06
+		bottom = rect.size.y * 0.94
+		left = rect.size.x * 0.31
+		right = rect.size.x * 0.70
 	for screen_point in [
-		Vector2(0, 0),
-		Vector2(rect.size.x, 0),
-		Vector2(0, rect.size.y),
-		Vector2(rect.size.x, rect.size.y),
+		Vector2(left, top),
+		Vector2(right, top),
+		Vector2(left, bottom),
+		Vector2(right, bottom),
 	]:
 		var p = _screen_to_plane(screen_point, 0.0)
 		if p != null:
@@ -88,6 +113,8 @@ func _configure_swim_bounds() -> void:
 			fish.set_swim_bounds(bounds_min, bounds_max)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not play_mode:
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_set_touch_target(event.position, true)
@@ -105,6 +132,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_set_touch_target(event.position, true)
 
 func _set_touch_target(screen_pos: Vector2, active: bool) -> void:
+	touch_held = active
+	if care and not care.pellets.is_empty():
+		return
 	# Preserve the fish's current depth while steering toward the touched x/y.
 	# This avoids every touch collapsing the animal onto the z=0 plane.
 	for fish in fish_nodes:
@@ -114,6 +144,7 @@ func _set_touch_target(screen_pos: Vector2, active: bool) -> void:
 			fish.set_follow_target(world_target, active)
 
 func _clear_touch_target() -> void:
+	touch_held = false
 	for fish in fish_nodes:
 		if fish.has_method("clear_follow_target"):
 			fish.clear_follow_target()

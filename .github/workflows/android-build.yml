@@ -71,6 +71,7 @@ jobs:
           godot --headless --path godot_project --script res://tests/test_pivot.gd
           godot --headless --path godot_project --script res://tests/test_corners.gd
           godot --headless --path godot_project --script res://tests/test_volume.gd
+          godot --headless --path godot_project --script res://tests/test_companion.gd
           godot --headless --fixed-fps 60 --path godot_project --script res://tests/diagnose_runtime.gd
 
       - name: Upload TankWall APK
