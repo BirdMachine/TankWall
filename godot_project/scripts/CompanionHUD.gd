@@ -21,6 +21,9 @@ var sparkles := 0.0
 var action_grid: GridContainer
 var status_clock := 0.0
 var preview_page := false
+var preview_camera_transform := Transform3D.IDENTITY
+var preview_camera_fov := 40.0
+var preview_camera_offset := 0.0
 
 func _ready() -> void:
 	call_deferred("_build")
@@ -36,6 +39,7 @@ func _build() -> void:
 	var font := ThemeDB.fallback_font.duplicate()
 	if font is FontFile:
 		font.multichannel_signed_distance_field = true
+	theme.set_stylebox("panel", "PopupPanel", _box(Color("0b222b"), Color("397079"), 15, 8))
 	theme.default_font = font
 	theme.default_font_size = roundi(18 * unit)
 	theme.set_color("font_color", "Label", Color("d7f6ef"))
@@ -97,7 +101,12 @@ func _build() -> void:
 	_label(actions, "Always safe. Always your little friend.", 12, Color("93bab8"))
 
 	modal = _panel(root)
+	modal.add_theme_stylebox_override("panel", _box(Color("0b222b"), Color("397079"), 23, 18))
 	modal.visible = false
+	modal.visibility_changed.connect(func():
+		dock.visible = not modal.visible
+		if not modal.visible:
+			_end_preview())
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	modal.add_child(scroll)
@@ -111,6 +120,18 @@ func _build() -> void:
 	_refresh()
 
 func _process(delta: float) -> void:
+	if preview_page and modal and modal.visible and care and care.fish():
+		# Frame the moving resident above the controls without changing its swim.
+		var fish = care.fish()
+		var focus: Vector3 = fish.global_position - fish.heading * 1.0
+		var viewport_size := get_viewport().get_visible_rect().size
+		var landscape := viewport_size.x > viewport_size.y
+		var camera: Camera3D = get_parent().get_node("Camera3D")
+		camera.fov = 50.0
+		var distance := 3.0 if landscape else 7.0
+		camera.position = focus + Vector3(0, 0, distance)
+		camera.look_at(focus if landscape else focus - Vector3.UP)
+		camera.h_offset = tan(deg_to_rad(25)) * distance * viewport_size.x / viewport_size.y * 0.48 if landscape else 0.0
 	if water:
 		sparkles = maxf(0.0, sparkles - delta * 0.25)
 		water.set_shader_parameter("sparkle", sparkles)
@@ -137,8 +158,12 @@ func _layout() -> void:
 		_place(dock, Rect2(size.x * 0.045, size.y * 0.725, size.x * 0.91, size.y * 0.235))
 		_place(modal, Rect2(size.x * 0.045, size.y * 0.22, size.x * 0.91, size.y * 0.74))
 
-	if preview_page and size.x <= size.y:
-		_place(modal, Rect2(size.x * 0.045, size.y * 0.54, size.x * 0.91, size.y * 0.42))
+	if preview_page:
+		if size.x <= size.y:
+			_place(modal, Rect2(size.x * 0.045, size.y * 0.54, size.x * 0.91, size.y * 0.42))
+		else:
+			_place(modal, Rect2(size.x * 0.52, size.y * 0.05, size.x * 0.455, size.y * 0.90))
+	header.visible = not (preview_page and size.x > size.y)
 
 func _place(control: Control, rect: Rect2) -> void:
 	control.position = rect.position
@@ -169,7 +194,7 @@ func _message(text: String) -> void:
 
 func _open_page(title: String, subtitle: String) -> void:
 	get_parent()._clear_touch_target()
-	preview_page = false
+	_end_preview()
 	_layout()
 	var scroll := modal.get_child(0) as ScrollContainer
 	scroll.scroll_vertical = 0
@@ -232,6 +257,7 @@ func _show_world() -> void:
 	picker.custom_minimum_size.y = 52
 	picker.color_changed.connect(func(value): get_parent().set_backwall(value))
 	modal_body.add_child(picker)
+	picker.get_popup().about_to_popup.connect(func(): _fit_colour_picker(picker))
 	_button(modal_body, "Fish colours & shimmer", _show_looks, 52)
 	_button(modal_body, "Lights & atmosphere", _show_lighting, 52)
 	_label(modal_body, "Your fish", 19, Color("e9d4a9"))
@@ -270,8 +296,7 @@ func _show_world() -> void:
 
 func _show_looks() -> void:
 	_open_page("Fish colours", "Make a palette. The scales and fin detail stay.")
-	preview_page = true
-	_layout()
+	_begin_preview()
 	var enabled := CheckButton.new()
 	enabled.text = "Custom palette"
 	enabled.button_pressed = care.state.style.fish.enabled
@@ -301,8 +326,7 @@ func _show_looks() -> void:
 
 func _show_lighting() -> void:
 	_open_page("Lights & atmosphere", "Paint the light around your little friend.")
-	preview_page = true
-	_layout()
+	_begin_preview()
 	_colour_control("Main light colour", "lights", "key")
 	_style_slider("Main light strength", "lights", "energy", 0, 4, 0.1)
 	_style_slider("Light direction", "lights", "yaw", -180, 180, 5)
@@ -317,10 +341,29 @@ func _show_lighting() -> void:
 	backwall.custom_minimum_size.y = 52
 	backwall.color_changed.connect(func(value): get_parent().set_backwall(value))
 	modal_body.add_child(backwall)
+	backwall.get_popup().about_to_popup.connect(func(): _fit_colour_picker(backwall))
 	_button(modal_body, "Reset lighting", func():
 		get_parent().reset_lighting()
 		_show_lighting(), 50)
 	_button(modal_body, "Fish colours ›", _show_looks, 50)
+
+func _begin_preview() -> void:
+	var camera: Camera3D = get_parent().get_node("Camera3D")
+	preview_camera_transform = camera.transform
+	preview_camera_fov = camera.fov
+	preview_camera_offset = camera.h_offset
+	preview_page = true
+	_layout()
+
+func _end_preview() -> void:
+	if not preview_page:
+		return
+	var camera: Camera3D = get_parent().get_node("Camera3D")
+	camera.transform = preview_camera_transform
+	camera.fov = preview_camera_fov
+	camera.h_offset = preview_camera_offset
+	preview_page = false
+	header.show()
 
 func _colour_control(title: String, section: String, key: String, enable: CheckButton = null) -> void:
 	_label(modal_body, title, 16, Color("accfca"))
@@ -334,6 +377,13 @@ func _colour_control(title: String, section: String, key: String, enable: CheckB
 			enable.button_pressed = true
 		get_parent().set_style_value(section, key, value.to_html()))
 	modal_body.add_child(picker)
+	picker.get_popup().about_to_popup.connect(func(): _fit_colour_picker(picker))
+
+func _fit_colour_picker(picker: ColorPickerButton) -> void:
+	var popup := picker.get_popup()
+	# Embedded windows use the viewport's logical coordinates, not UI scaling.
+	popup.content_scale_factor = minf(root.scale.x, get_viewport().get_visible_rect().size.y * 0.9 / 700.0)
+	popup.reset_size()
 
 func _style_slider(title: String, section: String, key: String, low: float, high: float, increment: float) -> void:
 	var caption := _label(modal_body, "", 16, Color("accfca"))

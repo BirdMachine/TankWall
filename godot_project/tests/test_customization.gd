@@ -80,6 +80,11 @@ func run() -> void:
 	await process_frame
 	await process_frame
 	var hud = main.get_node("AeroHUD")
+	var original_camera: Transform3D = main.get_node("Camera3D").transform
+	hud._show_looks()
+	hud._process(0.016)
+	hud.modal.hide()
+	check(main.get_node("Camera3D").transform.is_equal_approx(original_camera), "Closing live preview did not restore the camera")
 	hud._show_looks()
 	var picker = hud.modal_body.get_node("fish_base")
 	picker.color_changed.emit(Color("55aaff"))
