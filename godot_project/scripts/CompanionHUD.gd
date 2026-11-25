@@ -170,8 +170,10 @@ func _show_name() -> void:
 func _show_memories() -> void:
 	_open_page("Our little story", "The good moments stay. Visit whenever it feels nice.")
 	var days: int = care.state.age_days(Time.get_unix_time_from_system())
-	_label(modal_body, "Together for %d %s" % [days, "day" if days == 1 else "days"], 20, Color("e9d4a9"))
-	for line in ["%d shared snacks" % care.state.snacks, "%d little games" % care.state.games, "%d water sparkles" % care.state.refreshes]:
+	_label(modal_body, "Our first day together" if days == 0 else "Together for %d %s" % [days, "day" if days == 1 else "days"], 20, Color("e9d4a9"))
+	for line in ["%d shared %s" % [care.state.snacks, "snack" if care.state.snacks == 1 else "snacks"],
+		"%d little %s" % [care.state.games, "game" if care.state.games == 1 else "games"],
+		"%d water %s" % [care.state.refreshes, "sparkle" if care.state.refreshes == 1 else "sparkles"]]:
 		_label(modal_body, line, 18, Color("b8e4d9"))
 	modal_body.add_child(HSeparator.new())
 	for memory in care.state.journal:

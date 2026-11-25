@@ -77,6 +77,7 @@ func _run() -> void:
 	for frame in 120:
 		fish._physics_process(1.0 / 60.0)
 	check(fish.position.is_equal_approx(original_position) and care.state.resting, "Rest must be calm and persistent")
+	check(absf(fish.heading.y) < 0.15, "Resting fish did not settle toward a level posture")
 	care.offer_snack()
 	check(care.pellets.is_empty() and care.state.bond == original_bond, "Rest changed progress or spawned food")
 	care.toggle_rest()
