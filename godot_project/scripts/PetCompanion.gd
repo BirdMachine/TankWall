@@ -206,7 +206,7 @@ func reload_from_disk() -> void:
 		_apply_rest()
 	if prior.personality != state.personality:
 		get_parent().configure_brains()
-	if prior.live_fins != state.live_fins:
+	if prior.live_fins != state.live_fins or prior.fin_freedom != state.fin_freedom:
 		get_parent().apply_fin_motion()
 	get_parent().apply_companion_view()
 	changed.emit()

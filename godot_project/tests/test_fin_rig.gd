@@ -26,6 +26,7 @@ func run() -> void:
 		for ray in adapter.fin_physics.rays:fin_ids.append_array(ray)
 		check(adapter.fin_physics.rays.size() == 6, "Missing fin rays")
 		var biggest := 0.0
+		var mapping_error := 0.0
 		var cost := 0
 		for frame in 480:
 			var time := float(frame) / 60.0
@@ -42,13 +43,26 @@ func run() -> void:
 			adapter.fin_physics.apply(1.0 / 60.0)
 			cost += Time.get_ticks_usec() - start
 			biggest = maxf(biggest, adapter.fin_physics.solver.max_offset)
+			for r in adapter.fin_physics.rays.size():
+				var ray: Array = adapter.fin_physics.rays[r]
+				var indices: Array = adapter.fin_physics.layout[r]
+				var reach := 0.0
+				for j in indices.size():
+					var point: int = indices[j]
+					if j > 0:
+						reach += adapter.fin_physics.solver.goals[point].distance_to(adapter.fin_physics.solver.goals[indices[j - 1]])
+					check(adapter.fin_physics.solver.points[point].distance_to(adapter.fin_physics.solver.goals[point]) <= reach * 2.0 + 0.0001, "Fin exceeded its attached reach")
+					if j < ray.size():
+						var actual := skeleton.global_transform * skeleton.get_bone_global_pose(ray[j]).origin
+						mapping_error = maxf(mapping_error, actual.distance_to(adapter.fin_physics.solver.points[point]))
 			for i in skeleton.get_bone_count():
 				var after := skeleton.get_bone_pose(i)
 				check(after.origin.is_equal_approx(before[i].origin), "A fin changed bone translation")
 				check(after.basis.get_scale().is_equal_approx(before[i].basis.get_scale()), "A fin changed bone scale")
 				check(after.basis.is_finite(), "Non-finite fin transform")
 				if i not in fin_ids:check(after.is_equal_approx(before[i]), "Cloth changed a body/eye/mouth bone")
-		check(biggest > 0.01 and biggest < 1.0, "Fin response absent or unbounded")
+		check(biggest > 0.01, "Fin response absent")
+		check(mapping_error < 0.001, "Artist bones did not follow the simulated fin proxy")
 		adapter.fin_physics.enabled = false
 		skeleton.reset_bone_poses()
 		adapter.animation_player.advance(1.0 / 60.0)
@@ -56,7 +70,7 @@ func run() -> void:
 		for i in skeleton.get_bone_count():original.append(skeleton.get_bone_pose(i))
 		adapter.fin_physics.apply(1.0 / 60.0)
 		for i in skeleton.get_bone_count():check(skeleton.get_bone_pose(i).is_equal_approx(original[i]), "Disabled cloth changed the source pose")
-		print("Private fins variant=", variant, " rays=", adapter.fin_physics.rays.size(), " peak lag=", biggest, " mean CPU usec=", cost / 480.0)
+		print("Private fins variant=", variant, " rays=", adapter.fin_physics.rays.size(), " peak lag=", biggest, " proxy mapping error=", mapping_error, " mean CPU usec=", cost / 480.0)
 		fish.free()
 	print("Private fin rig: failures=", failures)
 	quit(1 if failures else 0)

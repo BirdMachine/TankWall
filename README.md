@@ -2,6 +2,12 @@
 
 A gentle betta companion for Android, growing toward a live wallpaper. Care is optional and additive: the resident stays safe and content while you are away.
 
+## Deep fin folds 0.11
+
+[Deeper live folds](docs/DEEP_FIN_FOLDS.md) increase outer-fin freedom and add a
+saved **Fin freedom** slider. A comparison keeps the previous 0.10 live profile
+available alongside the stronger deformation through identical turns.
+
 ## Reactive fins 0.10
 The [reactive fins prototype 0.10](docs/LIVE_FIN_PHYSICS.md) adds an optional
 live cloth-proxy layer to the purchased fins, with a recorded-motion comparison

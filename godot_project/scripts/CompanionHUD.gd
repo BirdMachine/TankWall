@@ -228,12 +228,28 @@ func _show_world() -> void:
 	var motion := CheckButton.new()
 	motion.text = "Reactive fins"
 	motion.button_pressed = care.state.live_fins
+	motion.disabled = care.state.model_variant == 2 or not preload("res://scripts/GusaiRigAdapter.gd").available(care.state.model_variant)
 	motion.custom_minimum_size.y = 50
-	motion.toggled.connect(func(value): get_parent().set_fin_motion(value))
 	modal_body.add_child(motion)
+	_label(modal_body, "Fin freedom", 16, Color("accfca"))
+	var freedom := HSlider.new()
+	freedom.min_value = 0.5
+	freedom.max_value = 2.2
+	freedom.step = 0.1
+	freedom.value = care.state.fin_freedom
+	freedom.editable = not motion.disabled and motion.button_pressed
+	freedom.custom_minimum_size.y = 38
+	freedom.value_changed.connect(func(value): get_parent().set_fin_freedom(value))
+	modal_body.add_child(freedom)
+	motion.toggled.connect(func(value):
+		get_parent().set_fin_motion(value)
+		freedom.editable = not motion.disabled and value)
 	var options := ["Flowing split tail", "Broad fan tail", "Original companion"]
 	for i in 3:
-		var button := _button(modal_body, options[i], func(): get_parent().set_model_variant(i), 50)
+		var button := _button(modal_body, options[i], func():
+			get_parent().set_model_variant(i)
+			motion.disabled = i == 2
+			freedom.editable = not motion.disabled and motion.button_pressed, 50)
 		if i < 2 and not preload("res://scripts/GusaiRigAdapter.gd").available(i):
 			button.disabled = true
 	_label(modal_body, "A little personality", 19, Color("e9d4a9"))
@@ -248,7 +264,7 @@ func _show_looks() -> void:
 	for i in 4:
 		var names := ["Natural", "Moon blue", "Rose quartz", "Sea glass"]
 		_button(modal_body, names[i], func(): care.choose_look(i))
-	_label(modal_body, "TamoTank · flowing fins 0.10", 13, Color("93bab8"))
+	_label(modal_body, "TamoTank · deep fin folds 0.11", 13, Color("93bab8"))
 
 func _panel(parent: Node) -> PanelContainer:
 	var card := PanelContainer.new()
