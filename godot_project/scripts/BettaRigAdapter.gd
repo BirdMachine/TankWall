@@ -164,3 +164,16 @@ func _find_animation_tree(node: Node) -> AnimationTree:
 		if found:
 			return found
 	return null
+
+func colour_materials() -> Array[ShaderMaterial]:
+	var result: Array[ShaderMaterial] = []
+	for driver in volume_skins:
+		if "eye" not in String(driver.instance.name).to_lower():
+			for material in driver.materials:
+				if material not in result:
+					result.append(material)
+	return result
+
+func set_colour_style(style: Dictionary) -> void:
+	for material in colour_materials():
+		preload("res://scripts/AquariumStyle.gd").apply_material(material, style)

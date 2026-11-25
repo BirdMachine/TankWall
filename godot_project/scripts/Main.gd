@@ -23,6 +23,8 @@ var wallpaper_mode_override := false # repeatable desktop/service-state testing
 var wallpaper_bridge
 var tank_room: Node3D
 var room_layout_key := ""
+var fill_light: DirectionalLight3D
+const Style = preload("res://scripts/AquariumStyle.gd")
 
 func _ready() -> void:
 	RenderingServer.set_default_clear_color(solid_background)
@@ -194,7 +196,7 @@ func set_view_mode(mode: String) -> void:
 func set_backwall(colour: Color) -> void:
 	care.state.backwall = colour.to_html()
 	apply_companion_view()
-	care.save()
+	care.queue_preferences_save()
 
 func set_model_variant(index: int) -> void:
 	care.state.model_variant = clampi(index, 0, 2)
@@ -333,3 +335,61 @@ func _load_user_settings() -> void:
 		fish_count = int(parsed.get("fish_count", fish_count))
 		background_mode = str(parsed.get("background_mode", background_mode))
 		background_file = str(parsed.get("background_file", background_file))
+
+func apply_fish_colours() -> void:
+	if care == null:
+		return
+	for fish in fish_nodes:
+		if fish.rig_adapter and fish.rig_adapter.has_method("set_colour_style"):
+			fish.rig_adapter.set_colour_style(care.state.style.fish)
+
+func apply_lighting() -> void:
+	if care == null:
+		return
+	var settings: Dictionary = care.state.style.lights
+	var restful := 0.2 if care.state.resting else 1.0
+	var light := $DirectionalLight3D as DirectionalLight3D
+	light.light_color = Color.html(settings.key)
+	light.light_energy = settings.energy * restful
+	light.rotation_degrees = Vector3(-settings.elevation, settings.yaw, 0)
+	if fill_light == null:
+		fill_light = DirectionalLight3D.new()
+		fill_light.name = "ColourFillLight"
+		add_child(fill_light)
+	fill_light.light_color = Color.html(settings.fill)
+	fill_light.light_energy = settings.fill_energy * restful
+	fill_light.visible = settings.fill_energy > 0.0
+	fill_light.rotation_degrees = Vector3(-15, settings.yaw - 125, 0)
+	$WorldEnvironment.environment.ambient_light_energy = settings.ambient * restful
+
+func set_style_value(section: String, key: String, value: Variant) -> void:
+	if section not in care.state.style or key not in care.state.style[section]:
+		return
+	care.state.style[section][key] = value
+	_commit_style(section)
+
+func _commit_style(section: String) -> void:
+	care.state.style = Style.sanitize(care.state.style)
+	if section == "fish":
+		care.state.look = 0
+		care._apply_appearance()
+	else:
+		apply_lighting()
+	care.queue_preferences_save()
+	care.changed.emit()
+
+func choose_palette(palette_name: String) -> void:
+	care.state.style.fish = Style.palette(palette_name)
+	_commit_style("fish")
+
+func reset_lighting() -> void:
+	care.state.style.lights = Style.LIGHTS.duplicate()
+	_commit_style("lights")
+
+func randomise_fish() -> void:
+	var hue := randf()
+	care.state.style.fish.merge({"enabled": true,
+		"base": Color.from_hsv(hue, randf_range(0.45, 0.85), randf_range(0.7, 1.0)).to_html(),
+		"details": Color.from_hsv(fposmod(hue + randf_range(0.18, 0.55), 1.0), 0.65, 1.0).to_html(),
+		"shimmer": Color.from_hsv(hue, 0.25, 1.0).to_html(), "shimmer_amount": 0.28}, true)
+	_commit_style("fish")

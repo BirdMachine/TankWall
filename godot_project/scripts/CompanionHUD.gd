@@ -20,6 +20,7 @@ var unit := 1.0
 var sparkles := 0.0
 var action_grid: GridContainer
 var status_clock := 0.0
+var preview_page := false
 
 func _ready() -> void:
 	call_deferred("_build")
@@ -136,6 +137,9 @@ func _layout() -> void:
 		_place(dock, Rect2(size.x * 0.045, size.y * 0.725, size.x * 0.91, size.y * 0.235))
 		_place(modal, Rect2(size.x * 0.045, size.y * 0.22, size.x * 0.91, size.y * 0.74))
 
+	if preview_page and size.x <= size.y:
+		_place(modal, Rect2(size.x * 0.045, size.y * 0.54, size.x * 0.91, size.y * 0.42))
+
 func _place(control: Control, rect: Rect2) -> void:
 	control.position = rect.position
 	control.size = rect.size
@@ -165,6 +169,10 @@ func _message(text: String) -> void:
 
 func _open_page(title: String, subtitle: String) -> void:
 	get_parent()._clear_touch_target()
+	preview_page = false
+	_layout()
+	var scroll := modal.get_child(0) as ScrollContainer
+	scroll.scroll_vertical = 0
 	for child in modal_body.get_children():
 		modal_body.remove_child(child)
 		child.queue_free()
@@ -224,6 +232,8 @@ func _show_world() -> void:
 	picker.custom_minimum_size.y = 52
 	picker.color_changed.connect(func(value): get_parent().set_backwall(value))
 	modal_body.add_child(picker)
+	_button(modal_body, "Fish colours & shimmer", _show_looks, 52)
+	_button(modal_body, "Lights & atmosphere", _show_lighting, 52)
 	_label(modal_body, "Your fish", 19, Color("e9d4a9"))
 	var motion := CheckButton.new()
 	motion.text = "Reactive fins"
@@ -257,14 +267,88 @@ func _show_world() -> void:
 	modal_body.add_child(kinds)
 	for kind in ["curious", "calm", "dreamy"]:
 		_button(kinds, kind.capitalize(), func(): get_parent().set_personality(kind), 48)
-	_button(modal_body, "Soft colour tints", _show_looks, 48)
 
 func _show_looks() -> void:
-	_open_page("A little colour", "Soft colour tints for your companion.")
-	for i in 4:
-		var names := ["Natural", "Moon blue", "Rose quartz", "Sea glass"]
-		_button(modal_body, names[i], func(): care.choose_look(i))
-	_label(modal_body, "TamoTank · deep fin folds 0.11", 13, Color("93bab8"))
+	_open_page("Fish colours", "Make a palette. The scales and fin detail stay.")
+	preview_page = true
+	_layout()
+	var enabled := CheckButton.new()
+	enabled.text = "Custom palette"
+	enabled.button_pressed = care.state.style.fish.enabled
+	enabled.custom_minimum_size.y = 50
+	modal_body.add_child(enabled)
+	enabled.toggled.connect(func(value): get_parent().set_style_value("fish", "enabled", value))
+	_colour_control("Base colour", "fish", "base", enabled)
+	_colour_control("Markings colour", "fish", "details", enabled)
+	_style_slider("Markings", "fish", "markings", 0, 1, 0.05)
+	_colour_control("Shimmer colour", "fish", "shimmer")
+	_style_slider("Shimmer", "fish", "shimmer_amount", 0, 1, 0.05)
+	_style_slider("Shine", "fish", "shine", 0, 1, 0.05)
+	_style_slider("Saturation", "fish", "saturation", 0, 2, 0.05)
+	_style_slider("Brightness", "fish", "brightness", 0.2, 1.8, 0.05)
+	_label(modal_body, "Ready-made palettes", 19, Color("e9d4a9"))
+	for palette_name in preload("res://scripts/AquariumStyle.gd").PRESETS:
+		_button(modal_body, palette_name, func():
+			get_parent().choose_palette(palette_name)
+			_show_looks(), 50)
+	_button(modal_body, "Surprise me", func():
+		get_parent().randomise_fish()
+		_show_looks(), 50)
+	_button(modal_body, "Original colours", func():
+		get_parent().choose_palette("Original")
+		_show_looks(), 50)
+	_button(modal_body, "Lights & atmosphere ›", _show_lighting, 50)
+
+func _show_lighting() -> void:
+	_open_page("Lights & atmosphere", "Paint the light around your little friend.")
+	preview_page = true
+	_layout()
+	_colour_control("Main light colour", "lights", "key")
+	_style_slider("Main light strength", "lights", "energy", 0, 4, 0.1)
+	_style_slider("Light direction", "lights", "yaw", -180, 180, 5)
+	_style_slider("Light elevation", "lights", "elevation", -80, 80, 5)
+	_colour_control("Fill light colour", "lights", "fill")
+	_style_slider("Fill light strength", "lights", "fill_energy", 0, 3, 0.1)
+	_style_slider("Ambient light", "lights", "ambient", 0, 1.5, 0.05)
+	_label(modal_body, "Backwall colour", 16, Color("accfca"))
+	var backwall := ColorPickerButton.new()
+	backwall.edit_alpha = false
+	backwall.color = Color.html(care.state.backwall)
+	backwall.custom_minimum_size.y = 52
+	backwall.color_changed.connect(func(value): get_parent().set_backwall(value))
+	modal_body.add_child(backwall)
+	_button(modal_body, "Reset lighting", func():
+		get_parent().reset_lighting()
+		_show_lighting(), 50)
+	_button(modal_body, "Fish colours ›", _show_looks, 50)
+
+func _colour_control(title: String, section: String, key: String, enable: CheckButton = null) -> void:
+	_label(modal_body, title, 16, Color("accfca"))
+	var picker := ColorPickerButton.new()
+	picker.name = section + "_" + key
+	picker.color = Color.html(care.state.style[section][key])
+	picker.edit_alpha = false
+	picker.custom_minimum_size.y = 52
+	picker.color_changed.connect(func(value):
+		if enable and not enable.button_pressed:
+			enable.button_pressed = true
+		get_parent().set_style_value(section, key, value.to_html()))
+	modal_body.add_child(picker)
+
+func _style_slider(title: String, section: String, key: String, low: float, high: float, increment: float) -> void:
+	var caption := _label(modal_body, "", 16, Color("accfca"))
+	var slider := HSlider.new()
+	slider.name = section + "_" + key
+	slider.min_value = low
+	slider.max_value = high
+	slider.step = increment
+	slider.value = care.state.style[section][key]
+	slider.custom_minimum_size.y = 44
+	caption.text = "%s · %.2f" % [title, slider.value]
+	slider.value_changed.connect(func(value):
+		caption.text = "%s · %.2f" % [title, value]
+		get_parent().set_style_value(section, key, value))
+	modal_body.add_child(slider)
 
 func _panel(parent: Node) -> PanelContainer:
 	var card := PanelContainer.new()

@@ -77,6 +77,7 @@ jobs:
           godot --headless --path godot_project --script res://tests/test_volume.gd
           godot --headless --path godot_project --script res://tests/test_companion.gd
           godot --headless --path godot_project --script res://tests/test_living_tank.gd
+          godot --headless --path godot_project --script res://tests/test_customization.gd
           godot --headless --path godot_project --script res://tests/test_fin_cloth.gd
           godot --headless --path godot_project --script res://tests/test_deep_fins.gd
           godot --headless --path godot_project --script res://tests/test_fin_rig.gd
