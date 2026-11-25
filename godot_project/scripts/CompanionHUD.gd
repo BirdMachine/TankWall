@@ -225,6 +225,12 @@ func _show_world() -> void:
 	picker.color_changed.connect(func(value): get_parent().set_backwall(value))
 	modal_body.add_child(picker)
 	_label(modal_body, "Your fish", 19, Color("e9d4a9"))
+	var motion := CheckButton.new()
+	motion.text = "Reactive fins"
+	motion.button_pressed = care.state.live_fins
+	motion.custom_minimum_size.y = 50
+	motion.toggled.connect(func(value): get_parent().set_fin_motion(value))
+	modal_body.add_child(motion)
 	var options := ["Flowing split tail", "Broad fan tail", "Original companion"]
 	for i in 3:
 		var button := _button(modal_body, options[i], func(): get_parent().set_model_variant(i), 50)
@@ -242,7 +248,7 @@ func _show_looks() -> void:
 	for i in 4:
 		var names := ["Natural", "Moon blue", "Rose quartz", "Sea glass"]
 		_button(modal_body, names[i], func(): care.choose_look(i))
-	_label(modal_body, "TamoTank · living aquarium 0.9", 13, Color("93bab8"))
+	_label(modal_body, "TamoTank · flowing fins 0.10", 13, Color("93bab8"))
 
 func _panel(parent: Node) -> PanelContainer:
 	var card := PanelContainer.new()

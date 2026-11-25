@@ -39,6 +39,7 @@ func run() -> void:
 	state.model_variant = 0
 	state.backwall = "185b67ff"
 	state.personality = "dreamy"
+	state.live_fins = false
 	state.record_care("snack")
 	check(state.save_to(PATH) == OK, "Could not prepare shared companion")
 	var before := FileAccess.get_file_as_string(PATH)
@@ -50,6 +51,8 @@ func run() -> void:
 	await process_frame
 	check(main.wallpaper_mode and main.care.read_only, "Wallpaper must be a read-only companion view")
 	check(main.tank_room.visible and main.tank_room.get_child_count() >= 6, "Tank room didn't build")
+	if main.fish_nodes[0].rig_adapter.get("fin_physics") != null:
+		check(not main.fish_nodes[0].rig_adapter.live_fins, "Saved fin preference wasn't applied")
 	check(main.get_node_or_null("AeroHUD") == null, "Care UI leaked into wallpaper")
 	main.care._process(3600.0)
 	main.care.save()
@@ -58,12 +61,15 @@ func run() -> void:
 	state.look = 2
 	state.view_mode = "showcase"
 	state.personality = "calm"
+	state.live_fins = true
 	state.save_to(PATH)
 	main.care.reload_from_disk()
 	check(main.care.state.pet_name == "Mochi" and not main.tank_room.visible, "Wallpaper didn't pick up foreground settings")
 	check(main.fish_nodes[0].brain.personality == "calm", "Personality wasn't applied to the resident")
 	check(main.fish_nodes[0].cruise_speed < main.fish_speed, "Calm personality didn't change the actual swimming pace")
 	check(main.care.state.bond == state.bond, "Shared progress changed during refresh")
+	if main.fish_nodes[0].rig_adapter.get("fin_physics") != null:
+		check(main.fish_nodes[0].rig_adapter.live_fins, "Wallpaper didn't refresh fin motion")
 	main.free()
 	for suffix in ["", ".bak", ".tmp"]:
 		if FileAccess.file_exists(PATH + suffix):

@@ -16,6 +16,7 @@ var view_mode := "showcase"
 var backwall := "14313eff"
 var model_variant := 0
 var personality := "curious"
+var live_fins := true
 
 func initialize(now: float) -> void:
 	adopted_at = now
@@ -55,7 +56,8 @@ func to_data() -> Dictionary:
 		"last_seen": last_seen, "bond": bond, "snacks": snacks, "games": games,
 		"refreshes": refreshes, "resting": resting, "look": look,
 		"visits": visits, "journal": journal, "view_mode": view_mode,
-		"backwall": backwall, "model_variant": model_variant, "personality": personality}
+		"backwall": backwall, "model_variant": model_variant, "personality": personality,
+		"live_fins": live_fins}
 
 func from_data(data: Dictionary, now: float) -> void:
 	pet_name = str(data.get("pet_name", "Miso")).strip_edges().left(24)
@@ -76,6 +78,7 @@ func from_data(data: Dictionary, now: float) -> void:
 		backwall = "14313eff"
 	model_variant = clampi(int(data.get("model_variant", 0)), 0, 2)
 	personality = str(data.get("personality", "curious"))
+	live_fins = bool(data.get("live_fins", true))
 	if personality not in ["curious", "calm", "dreamy"]:
 		personality = "curious"
 	var entries = data.get("journal", [])
