@@ -76,3 +76,10 @@ The side-by-side beta uses `com.birdmachine.tamotank.livingbeta` so it does not
 replace the earlier companion prototype. The emulator preset uses x86_64; the
 phone preset uses arm64. A private paid-model build is performed locally; public
 CI builds contain the redistributable fallback.
+
+The first API 34 native run passed foreground startup, wallpaper preview/frame,
+application, shared-setting reload, read-only care over the save interval,
+visibility pause, and wake survival. It failed the graphics check because the
+emulator's legacy SwiftShader GLES driver could not link even built-in Godot
+shaders (upstream Godot issue #109550). CI uses the current SwANGLE backend
+instead; keep the shader-failure assertion enabled.

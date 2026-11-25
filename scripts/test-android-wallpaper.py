@@ -77,8 +77,10 @@ try:
  print('PASS: wallpaper does not overwrite shared care',flush=True)
  adb('shell','input','keyevent','KEYCODE_SLEEP');time.sleep(3)
  wait_for(lambda:'TamoTank wallpaper visible=false' in logs(),'hidden wallpaper pauses',30)
+ visible_before=logs().count('TamoTank wallpaper visible=true')
  adb('shell','input','keyevent','KEYCODE_WAKEUP');adb('shell','wm','dismiss-keyguard');adb('shell','input','keyevent','KEYCODE_HOME')
  wait_for(active,'wallpaper survives wake')
+ wait_for(lambda:logs().count('TamoTank wallpaper visible=true')>visible_before,'wallpaper simulation resumes after wake',30)
  time.sleep(3);screenshot('wallpaper-resumed')
  output=logs()
  assert 'FATAL EXCEPTION' not in output and 'Shader compilation failed' not in output and 'Program linking failed' not in output, 'Native crash or shader failure'
