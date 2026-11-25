@@ -12,6 +12,8 @@ config/icon="res://icon.svg"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+limits/opengl/max_renderable_lights=8
+limits/opengl/max_lights_per_object=4
 
 [display]
 window/size/viewport_width=540
@@ -22,3 +24,6 @@ window/handheld/orientation=6
 
 [input]
 ui_accept={"deadzone":0.5,"events":[]}
+
+[editor_plugins]
+enabled=PackedStringArray("res://addons/TamoTankWallpaper/plugin.cfg")

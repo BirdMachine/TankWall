@@ -17,11 +17,15 @@ build/
 Thumbs.db
 .vscode/
 .idea/
+__pycache__/
 
 # Local asset staging
 assets/local/
 assets/private/
 godot_project/assets/models/gusai_betta/
+godot_project/addons/TamoTankWallpaper/bin/
+godot_project/android/
+android/livewallpaper/local.properties
 
 # Generated vendor model expansions (source ZIP remains tracked)
 godot_project/assets/models/bluemesh_betta/

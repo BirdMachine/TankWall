@@ -17,20 +17,44 @@ var care
 var play_mode := false
 var touch_held := false
 var companion_save_path := "user://companion.json"
+var fish_model_variant := 0
+var wallpaper_mode := false
+var wallpaper_mode_override := false # repeatable desktop/service-state testing
+var wallpaper_bridge
+var tank_room: Node3D
+var room_layout_key := ""
 
 func _ready() -> void:
 	RenderingServer.set_default_clear_color(solid_background)
-	_spawn_fish()
 	_load_user_settings()
-	# A companion is a single resident; extra fish can return as separate tanks.
-	if fish_nodes.size() != 1:
-		fish_count = 1
-		_spawn_fish()
+	fish_count = 1
+	wallpaper_bridge = preload("res://scripts/WallpaperBridge.gd").new()
+	add_child(wallpaper_bridge)
+	wallpaper_mode = wallpaper_mode_override or wallpaper_bridge.wallpaper
+	Engine.max_fps = 60 if wallpaper_mode else 120
 	care = preload("res://scripts/PetCompanion.gd").new()
 	care.name = "Companion"
 	care.save_path = companion_save_path
+	care.read_only = wallpaper_mode
 	add_child(care)
+	care.delight.connect(_celebrate)
+	fish_model_variant = care.state.model_variant
+	_spawn_fish()
+	care._apply_rest()
+	tank_room = preload("res://scripts/TankRoom.gd").new()
+	add_child(tank_room)
+	apply_companion_view()
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
+	print("TamoTank: ", "wallpaper" if wallpaper_mode else "companion", " ready; view=", care.state.view_mode)
+	if wallpaper_mode and not DisplayServer.get_name() == "headless":
+		RenderingServer.frame_post_draw.connect(func(): print("TamoTank: wallpaper frame drawn; viewport=", get_viewport().get_visible_rect().size), CONNECT_ONE_SHOT)
+
+func _celebrate() -> void:
+	if wallpaper_mode or fish_nodes.is_empty():
+		return
+	var bubbles := preload("res://scripts/WaterSparkles.gd").new()
+	add_child(bubbles)
+	bubbles.position = fish_nodes[0].position
 
 func _process(delta: float) -> void:
 	if play_mode and touch_held and care:
@@ -43,12 +67,30 @@ func _spawn_fish() -> void:
 	var count := clampi(fish_count, 1, 3)
 	for i in count:
 		var fish := fish_scene.instantiate() as Node3D
+		fish.model_variant = fish_model_variant
 		add_child(fish)
 		fish.position = Vector3(-(count - 1) * 0.35 + i * 0.7, 0.15 * i, 0)
 		fish.set("lane", i)
 		fish_nodes.append(fish)
 		_apply_fish_settings(fish)
 	_configure_swim_bounds()
+	configure_brains()
+	if care:
+		care._apply_appearance()
+		care._apply_rest()
+
+func configure_brains() -> void:
+	if care == null:
+		return
+	for fish in fish_nodes:
+		if fish.brain == null:
+			fish.brain = preload("res://scripts/FishBrain.gd").new()
+			fish.add_child(fish.brain)
+		fish.brain.configure(care.state.personality, int(care.state.adopted_at * 1000.0))
+		var calmness := 0.80 if care.state.personality == "calm" else 0.68 if care.state.personality == "dreamy" else 1.0
+		fish.set_cruise_speed(fish_speed * calmness)
+		fish.set_animation_rate(fish_animation_rate * lerpf(0.75, 1.0, calmness))
+		fish.retarget_time = 0.0
 
 func _apply_fish_settings(fish: Node3D) -> void:
 	if fish.has_method("set_cruise_speed"):
@@ -79,6 +121,11 @@ func _configure_swim_bounds() -> void:
 		bottom = rect.size.y * 0.94
 		left = rect.size.x * 0.31
 		right = rect.size.x * 0.70
+	if wallpaper_mode:
+		top = 0
+		bottom = rect.size.y
+		left = 0
+		right = rect.size.x
 	for screen_point in [
 		Vector2(left, top),
 		Vector2(right, top),
@@ -111,9 +158,62 @@ func _configure_swim_bounds() -> void:
 	for fish in fish_nodes:
 		if fish.has_method("set_swim_bounds"):
 			fish.set_swim_bounds(bounds_min, bounds_max)
+	_refresh_tank_room()
+
+func apply_companion_view() -> void:
+	if care == null:
+		return
+	var colour := Color.html(care.state.backwall)
+	if care.state.resting:
+		colour = colour.darkened(0.60)
+	solid_background = colour
+	var environment: Environment = $WorldEnvironment.environment
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = colour
+	RenderingServer.set_default_clear_color(colour)
+	_refresh_tank_room()
+
+func _refresh_tank_room() -> void:
+	if tank_room == null or care == null or fish_nodes.is_empty():
+		return
+	tank_room.visible = care.state.view_mode == "tank"
+	if not tank_room.visible:
+		return
+	var pet = fish_nodes[0]
+	var key := str(pet.swim_bounds_min) + str(pet.swim_bounds_max) + solid_background.to_html()
+	if key != room_layout_key:
+		room_layout_key = key
+		tank_room.build(pet.swim_bounds_min, pet.swim_bounds_max, solid_background)
+
+func set_view_mode(mode: String) -> void:
+	care.state.view_mode = "tank" if mode == "tank" else "showcase"
+	apply_companion_view()
+	care._finish("A little room with a view." if mode == "tank" else "Just your fish and a quiet backwall.")
+
+func set_backwall(colour: Color) -> void:
+	care.state.backwall = colour.to_html()
+	apply_companion_view()
+	care.save()
+
+func set_model_variant(index: int) -> void:
+	care.state.model_variant = clampi(index, 0, 2)
+	fish_model_variant = care.state.model_variant
+	_spawn_fish()
+	care._finish("A lovely new silhouette.")
+
+func set_personality(kind: String) -> void:
+	care.state.personality = kind
+	configure_brains()
+	care._finish("A little %s soul." % kind)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not play_mode:
+		if (event is InputEventScreenTouch and event.pressed) or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+			for fish in fish_nodes:
+				var point = _screen_to_plane(event.position, fish.position.z)
+				if point != null and fish.brain and not fish.resting:
+					fish.brain.notice(point)
+					fish.retarget_time = minf(fish.retarget_time, 0.6)
 		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -212,4 +312,3 @@ func _load_user_settings() -> void:
 		fish_count = int(parsed.get("fish_count", fish_count))
 		background_mode = str(parsed.get("background_mode", background_mode))
 		background_file = str(parsed.get("background_file", background_file))
-		_spawn_fish()

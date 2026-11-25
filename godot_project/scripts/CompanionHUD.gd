@@ -1,4 +1,5 @@
 extends CanvasLayer
+const GusaiAdapter = preload("res://scripts/GusaiRigAdapter.gd")
 ## Touch-first care, with the resident fish left visible between the cards.
 
 var care
@@ -18,11 +19,15 @@ var controls: Array = []
 var unit := 1.0
 var sparkles := 0.0
 var action_grid: GridContainer
+var status_clock := 0.0
 
 func _ready() -> void:
 	call_deferred("_build")
 
 func _build() -> void:
+	if get_parent().wallpaper_mode:
+		queue_free()
+		return
 	care = get_parent().care
 	# Author in logical portrait units; _layout scales the entire UI on rotation.
 	unit = 1.0
@@ -52,10 +57,10 @@ func _build() -> void:
 	water = ShaderMaterial.new()
 	water.shader = preload("res://shaders/CompanionWater.gdshader")
 	colour.material = water
+	colour.visible = false
 	backdrop.add_child(colour)
 	var environment: Environment = get_parent().get_node("WorldEnvironment").environment
-	environment.background_mode = Environment.BG_CANVAS
-	environment.background_canvas_max_layer = -1
+	environment.background_mode = Environment.BG_COLOR
 
 	header = _panel(root)
 	var intro := _stack(header)
@@ -87,7 +92,7 @@ func _build() -> void:
 	_button(grid, "Sparkle", func(): care.refresh_water())
 	rest_button = _button(grid, "Rest", func(): care.toggle_rest())
 	_button(grid, "Memories", _show_memories)
-	_button(grid, "Looks", _show_looks)
+	_button(grid, "World", _show_world)
 	_label(actions, "Always safe. Always your little friend.", 12, Color("93bab8"))
 
 	modal = _panel(root)
@@ -108,6 +113,11 @@ func _process(delta: float) -> void:
 	if water:
 		sparkles = maxf(0.0, sparkles - delta * 0.25)
 		water.set_shader_parameter("sparkle", sparkles)
+	if care and status:
+		status_clock += delta
+		if status_clock >= 1.0:
+			status_clock = 0.0
+			_refresh_status()
 
 func _layout() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
@@ -132,12 +142,23 @@ func _place(control: Control, rect: Rect2) -> void:
 
 func _refresh() -> void:
 	name_button.text = care.state.pet_name + "  ›"
-	status.text = "Resting peacefully" if care.state.resting else "Feeling curious · happy to see you"
+	_refresh_status()
 	var moments: int = care.state.snacks + care.state.games + care.state.refreshes
 	friendship.text = "Friendship %02d  ·  %d little %s" % [care.state.level(), moments, "moment" if moments == 1 else "moments"]
 	rest_button.text = "Wake" if care.state.resting else "Rest"
 	play_button.text = "Wander" if get_parent().play_mode else "Play"
 	water.set_shader_parameter("resting", 1.0 if care.state.resting else 0.0)
+
+func _refresh_status() -> void:
+	if care.state.resting:
+		status.text = "Resting peacefully"
+	elif not care.pellets.is_empty():
+		status.text = "Investigating a tiny snack"
+	elif get_parent().play_mode:
+		status.text = "Following your finger"
+	else:
+		var fish = care.fish()
+		status.text = fish.brain.state_label if fish and fish.brain else "Happy to see you"
 
 func _message(text: String) -> void:
 	note.text = text
@@ -180,16 +201,48 @@ func _show_memories() -> void:
 		var line := _label(modal_body, str(memory), 17, Color("cfdfd0"))
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	modal_body.add_child(HSeparator.new())
-	var credit := _label(modal_body, "Betta Splendens by BlueMesh · CC BY 4.0\nModified body, skin and swimming.", 13, Color("93bab8"))
+	var purchased: bool = care.fish() != null and care.fish().rig_adapter != null and care.fish().rig_adapter.get_script() == GusaiAdapter
+	var credit_text := "Betta fish by Gusai · Fab\nAdapted for TamoTank.\nOriginal companion by BlueMesh · CC BY 4.0." if purchased else "Betta Splendens by BlueMesh · CC BY 4.0\nModified body, skin and swimming."
+	var credit := _label(modal_body, credit_text, 13, Color("93bab8"))
 	credit.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_button(modal_body, "Model & licence", func(): OS.shell_open("https://sketchfab.com/3d-models/betta-splendens-f4eeb7f50ad24873842bd954ad27d23b"), 48)
+	_button(modal_body, "Model & licence", func(): OS.shell_open("https://www.fab.com/listings/8744393d-3db2-44c9-869f-93a74c164b78" if purchased else "https://sketchfab.com/3d-models/betta-splendens-f4eeb7f50ad24873842bd954ad27d23b"), 48)
+	if purchased:
+		_button(modal_body, "BlueMesh model & CC BY 4.0", func(): OS.shell_open("https://sketchfab.com/3d-models/betta-splendens-f4eeb7f50ad24873842bd954ad27d23b"), 48)
+
+func _show_world() -> void:
+	_open_page("Your little world", "A quiet backwall, or a room with depth.")
+	if get_parent().wallpaper_bridge.supported():
+		_button(modal_body, "Set live wallpaper", func(): get_parent().wallpaper_bridge.show_picker())
+	var modes := HBoxContainer.new()
+	modal_body.add_child(modes)
+	_button(modes, "Showcase", func(): get_parent().set_view_mode("showcase"))
+	_button(modes, "Tank", func(): get_parent().set_view_mode("tank"))
+	_label(modal_body, "Backwall colour", 16, Color("accfca"))
+	var picker := ColorPickerButton.new()
+	picker.color = Color.html(care.state.backwall)
+	picker.edit_alpha = false
+	picker.custom_minimum_size.y = 52
+	picker.color_changed.connect(func(value): get_parent().set_backwall(value))
+	modal_body.add_child(picker)
+	_label(modal_body, "Your fish", 19, Color("e9d4a9"))
+	var options := ["Flowing split tail", "Broad fan tail", "Original companion"]
+	for i in 3:
+		var button := _button(modal_body, options[i], func(): get_parent().set_model_variant(i), 50)
+		if i < 2 and not preload("res://scripts/GusaiRigAdapter.gd").available(i):
+			button.disabled = true
+	_label(modal_body, "A little personality", 19, Color("e9d4a9"))
+	var kinds := HBoxContainer.new()
+	modal_body.add_child(kinds)
+	for kind in ["curious", "calm", "dreamy"]:
+		_button(kinds, kind.capitalize(), func(): get_parent().set_personality(kind), 48)
+	_button(modal_body, "Soft colour tints", _show_looks, 48)
 
 func _show_looks() -> void:
 	_open_page("A little colour", "Soft colour tints for your companion.")
 	for i in 4:
 		var names := ["Natural", "Moon blue", "Rose quartz", "Sea glass"]
 		_button(modal_body, names[i], func(): care.choose_look(i))
-	_label(modal_body, "TamoTank · companion preview 0.8", 13, Color("93bab8"))
+	_label(modal_body, "TamoTank · living aquarium 0.9", 13, Color("93bab8"))
 
 func _panel(parent: Node) -> PanelContainer:
 	var card := PanelContainer.new()

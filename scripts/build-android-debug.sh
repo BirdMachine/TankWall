@@ -14,6 +14,15 @@ fi
 # project. If an optional vendor archive is absent, the procedural fallback fish
 # remains available.
 python3 "$ROOT/scripts/install-vendor-models.py"
+python3 "$ROOT/scripts/install-android-template.py"
+
+# Build the pinned wallpaper bridge from auditable source. Its generated AARs
+# are ignored; the paid fish pack is never fetched or uploaded by CI.
+"$PROJECT/android/build/gradlew" -p "$ROOT/android/livewallpaper" \
+  :plugin:assembleDebug :plugin:assembleRelease --no-daemon --console=plain
+mkdir -p "$PROJECT/addons/TamoTankWallpaper/bin"
+cp "$ROOT/android/livewallpaper/plugin/build/outputs/aar/plugin-debug.aar" "$PROJECT/addons/TamoTankWallpaper/bin/wallpaper-debug.aar"
+cp "$ROOT/android/livewallpaper/plugin/build/outputs/aar/plugin-release.aar" "$PROJECT/addons/TamoTankWallpaper/bin/wallpaper-release.aar"
 
 cd "$PROJECT"
 # Import and validate the project. Do not hide scene/script errors: a green

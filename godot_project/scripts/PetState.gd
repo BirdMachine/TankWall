@@ -12,6 +12,10 @@ var resting := false
 var look := 0
 var visits := 1
 var journal: Array = []
+var view_mode := "showcase"
+var backwall := "14313eff"
+var model_variant := 0
+var personality := "curious"
 
 func initialize(now: float) -> void:
 	adopted_at = now
@@ -50,7 +54,8 @@ func to_data() -> Dictionary:
 	return {"version": 1, "pet_name": pet_name, "adopted_at": adopted_at,
 		"last_seen": last_seen, "bond": bond, "snacks": snacks, "games": games,
 		"refreshes": refreshes, "resting": resting, "look": look,
-		"visits": visits, "journal": journal}
+		"visits": visits, "journal": journal, "view_mode": view_mode,
+		"backwall": backwall, "model_variant": model_variant, "personality": personality}
 
 func from_data(data: Dictionary, now: float) -> void:
 	pet_name = str(data.get("pet_name", "Miso")).strip_edges().left(24)
@@ -65,6 +70,14 @@ func from_data(data: Dictionary, now: float) -> void:
 	resting = bool(data.get("resting", false))
 	look = clampi(int(data.get("look", 0)), 0, 3)
 	visits = maxi(1, int(data.get("visits", 1)))
+	view_mode = "tank" if str(data.get("view_mode", "showcase")) == "tank" else "showcase"
+	backwall = str(data.get("backwall", "14313eff"))
+	if not Color.html_is_valid(backwall):
+		backwall = "14313eff"
+	model_variant = clampi(int(data.get("model_variant", 0)), 0, 2)
+	personality = str(data.get("personality", "curious"))
+	if personality not in ["curious", "calm", "dreamy"]:
+		personality = "curious"
 	var entries = data.get("journal", [])
 	journal.clear()
 	if entries is Array:
