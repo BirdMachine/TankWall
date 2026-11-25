@@ -2,6 +2,11 @@
 
 A gentle betta companion for Android, growing toward a live wallpaper. Care is optional and additive: the resident stays safe and content while you are away.
 
+## Reactive fins 0.10
+The [reactive fins prototype 0.10](docs/LIVE_FIN_PHYSICS.md) adds an optional
+live cloth-proxy layer to the purchased fins, with a recorded-motion comparison
+and tests for the actual rigs. It retains the companion and wallpaper views.
+
 ## Living aquarium 0.9
 
 The current nightflight adds Showcase / 3D Tank views, a solid backwall picker, local fish personalities, two privately installed purchased models, and Android live-wallpaper integration. See [the implementation and validation notes](docs/LIVING_AQUARIUM.md). Paid model sources are excluded from this public repository; CI uses the redistributable fallback.

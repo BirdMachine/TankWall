@@ -2,6 +2,7 @@ extends Node
 ## Private model adapter; retain the source rig and its baked fin dynamics.
 const Flesh = preload("res://shaders/GusaiFlesh.gdshader")
 const Driver = preload("res://scripts/GusaiPoseDriver.gd")
+const FinPhysics = preload("res://scripts/FinDynamics.gd")
 const MODELS := ["res://assets/models/gusai_betta/split_tail_mobile.glb", "res://assets/models/gusai_betta/big_tail_mobile.glb"]
 var variant := 0
 var model_root: Node3D
@@ -19,6 +20,8 @@ var root_bone := -1
 var root_position := Vector3.ZERO
 var root_rotation := Quaternion.IDENTITY
 var head_pivot := Vector3(0, 0, 3.4)
+var fin_physics = FinPhysics.new()
+var live_fins := true
 
 static func available(index := 0) -> bool:
 	return ResourceLoader.exists(MODELS[clampi(index, 0, 1)])
@@ -49,6 +52,7 @@ func attach_to(host: Node3D) -> bool:
 	if head >= 0:
 		head_pivot = model_root.global_transform.affine_inverse() * skeleton.global_transform * skeleton.get_bone_global_pose(head).origin
 	_prepare_tree(model_root)
+	fin_physics.configure(skeleton)
 	var driver := Driver.new()
 	driver.adapter = self
 	skeleton.add_child(driver)
@@ -97,12 +101,14 @@ func _prepare_tree(node: Node) -> void:
 	for child in node.get_children():
 		_prepare_tree(child)
 
-func update_pose() -> void:
+func update_pose(delta := 0.0) -> void:
 	# Godot's native skinning retains the source's non-unit bind transforms.
 	# Strip clip locomotion at the root; the production controller owns travel.
 	if root_bone >= 0:
 		skeleton.set_bone_pose_position(root_bone, root_position)
 		skeleton.set_bone_pose_rotation(root_bone, root_rotation)
+	fin_physics.enabled = live_fins
+	fin_physics.apply(delta)
 
 func _process(delta: float) -> void:
 	yaw = lerpf(yaw, target_yaw, 1.0 - exp(-9.0 * delta))

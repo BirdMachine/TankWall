@@ -75,6 +75,7 @@ func _spawn_fish() -> void:
 		_apply_fish_settings(fish)
 	_configure_swim_bounds()
 	configure_brains()
+	apply_fin_motion()
 	if care:
 		care._apply_appearance()
 		care._apply_rest()
@@ -205,6 +206,19 @@ func set_personality(kind: String) -> void:
 	care.state.personality = kind
 	configure_brains()
 	care._finish("A little %s soul." % kind)
+
+func apply_fin_motion() -> void:
+	if care == null:
+		return
+	for fish in fish_nodes:
+		if fish.rig_adapter and fish.rig_adapter.get("fin_physics") != null:
+			fish.rig_adapter.live_fins = care.state.live_fins
+
+func set_fin_motion(enabled: bool) -> void:
+	care.state.live_fins = enabled
+	apply_fin_motion()
+	care.save()
+	care.changed.emit()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not play_mode:
