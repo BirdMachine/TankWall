@@ -17,11 +17,15 @@ var save_clock := 0.0
 var play_time := 0.0
 var play_rewarded := false
 var last_save_error := OK
+var read_only := false
+var reload_clock := 0.0
+var loaded_text := ""
 
 func _ready() -> void:
 	var now := Time.get_unix_time_from_system()
 	state.load_from(save_path, now)
-	if now - state.last_seen > 900.0:
+	loaded_text = FileAccess.get_file_as_string(save_path) if FileAccess.file_exists(save_path) else ""
+	if not read_only and now - state.last_seen > 900.0:
 		state.visits += 1
 	state.last_seen = now
 	_apply_appearance()
@@ -29,6 +33,12 @@ func _ready() -> void:
 	save()
 
 func _process(delta: float) -> void:
+	if read_only:
+		reload_clock += delta
+		if reload_clock >= 2.0:
+			reload_clock = 0.0
+			reload_from_disk()
+		return
 	snack_cooldown = maxf(0.0, snack_cooldown - delta)
 	play_cooldown = maxf(0.0, play_cooldown - delta)
 	refresh_cooldown = maxf(0.0, refresh_cooldown - delta)
@@ -158,7 +168,8 @@ func _apply_rest() -> void:
 		pet.pivot.stage = "cruise"
 		pet.pivot.bend = 0.0
 		pet.departure_distance = 0.0
-	get_parent().set_background_color(Color(0.008, 0.018, 0.05) if state.resting else Color(0.015, 0.09, 0.13))
+	if get_parent().has_method("apply_companion_view"):
+		get_parent().apply_companion_view()
 	get_parent().set_light_energy(0.32 if state.resting else 1.6)
 
 func _finish(text: String) -> void:
@@ -168,10 +179,35 @@ func _finish(text: String) -> void:
 	delight.emit()
 
 func save() -> void:
+	if read_only:
+		return
 	state.last_seen = Time.get_unix_time_from_system()
 	last_save_error = state.save_to(save_path)
 	if last_save_error != OK:
 		message.emit("Couldn't save this visit yet. Please keep the app open.")
+
+func reload_from_disk() -> void:
+	if not read_only or not FileAccess.file_exists(save_path):
+		return
+	var content := FileAccess.get_file_as_string(save_path)
+	if content == loaded_text:
+		return
+	var prior := state.to_data()
+	if not state.load_from(save_path, Time.get_unix_time_from_system()):
+		return
+	loaded_text = content
+	print("TamoTank: wallpaper preferences refreshed")
+	if prior.model_variant != state.model_variant:
+		get_parent().fish_model_variant = state.model_variant
+		get_parent()._spawn_fish()
+	if prior.look != state.look:
+		_apply_appearance()
+	if prior.resting != state.resting:
+		_apply_rest()
+	if prior.personality != state.personality:
+		get_parent().configure_brains()
+	get_parent().apply_companion_view()
+	changed.emit()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:

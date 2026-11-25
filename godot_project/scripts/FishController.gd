@@ -3,6 +3,7 @@ extends Node3D
 const PivotMotion = preload("res://scripts/BettaPivot.gd")
 
 const BettaRigAdapterScript = preload("res://scripts/BettaRigAdapter.gd")
+const GusaiAdapter = preload("res://scripts/GusaiRigAdapter.gd")
 
 @export var lane := 0
 @export var cruise_speed := 0.78
@@ -37,6 +38,8 @@ var pivot = PivotMotion.new()
 var departure_distance := 0.0
 var transported_dorsal := Vector3.UP
 var resting := false
+var model_variant := 2
+var brain: Node
 
 func _ready() -> void:
 	rng.seed = Time.get_ticks_usec() + get_instance_id() * 7919
@@ -62,7 +65,11 @@ func _try_imported_betta() -> void:
 		Vector3(0, 1, 0)
 	)
 
-	rig_adapter = BettaRigAdapterScript.new()
+	if model_variant < 2 and GusaiAdapter.available(model_variant):
+		rig_adapter = GusaiAdapter.new()
+		rig_adapter.variant = model_variant
+	else:
+		rig_adapter = BettaRigAdapterScript.new()
 	add_child(rig_adapter)
 	using_imported_model = rig_adapter.attach_to(model_host)
 
@@ -262,6 +269,12 @@ func _forward_clearance(direction: Vector3) -> float:
 	return distance
 
 func _pick_wander_target() -> void:
+	if brain:
+		var choice: Dictionary = brain.choose_target(position, swim_bounds_min, swim_bounds_max)
+		wander_target = choice.target
+		retarget_time = choice.wait
+		pause_time = choice.pause
+		return
 	wander_target = Vector3(
 		rng.randf_range(swim_bounds_min.x, swim_bounds_max.x),
 		rng.randf_range(swim_bounds_min.y, swim_bounds_max.y),
@@ -318,6 +331,9 @@ func set_visual_scale(value: float) -> void:
 
 func _apply_visual_scale() -> void:
 	if model_host:
+		if rig_adapter and rig_adapter.has_method("apply_visual_scale"):
+			rig_adapter.apply_visual_scale(model_host, visual_scale)
+			return
 		model_host.scale = Vector3.ONE * imported_model_scale * visual_scale
 		# Position denotes the head/pectoral pivot. The source was previously
 		# centred on the torso, making every reversal orbit a remote centre.

@@ -2,6 +2,10 @@
 
 A gentle betta companion for Android, growing toward a live wallpaper. Care is optional and additive: the resident stays safe and content while you are away.
 
+## Living aquarium 0.9
+
+The current nightflight adds Showcase / 3D Tank views, a solid backwall picker, local fish personalities, two privately installed purchased models, and Android live-wallpaper integration. See [the implementation and validation notes](docs/LIVING_AQUARIUM.md). Paid model sources are excluded from this public repository; CI uses the redistributable fallback.
+
 ## Companion preview 0.8
 
 Name your fish, offer a snack it swims over to eat, play follow-the-finger, make the water sparkle, or settle in for a quiet rest. Shared moments grow a persistent friendship and memory book. Four soft colour tints are available. There are no declining needs, absence penalties, streaks, sickness or death.
@@ -30,7 +34,7 @@ anterior bend with coherent head motion and a smoother, coated body material.
 Its [model-source investigation](docs/BETTA_MODEL_PROVENANCE.md) records the
 archived BETTA 120Hz asset inventory and independently available alternatives.
 
-## Current scaffold
+## Current foundation
 
 - Godot 4 aquarium scene using the mobile-friendly Compatibility renderer.
 - Rigged BlueMesh fish, volumetric deformation, coated skin and procedural swimming.
@@ -61,12 +65,12 @@ godot_project/build/android/TankWall-debug.apk
 
 ## Important milestone split
 
-The first milestone is a normal Android Godot APK so we can validate rendering, fish animation, settings, media backgrounds, and performance. The next milestone is native Android `WallpaperService` / Godot plugin wiring so Android exposes TankWall in the live-wallpaper picker.
+The normal companion app and the Android live wallpaper share the Godot aquarium scene. Foreground care owns saved progress; a separate wallpaper process reads the resident and preferences without writing care data. Wallpaper lifecycle and launcher behaviour need native validation alongside the rendering tests.
 
 ## Near-term roadmap
 
-1. Integrate and review the purchased betta pack privately.
-2. Add the Android live-wallpaper service/plugin.
+1. Expand texture choices and review the purchased rigs on the phone.
+2. Validate wallpaper previews, visibility, rotation and launcher behaviour.
 3. Add Android background media selection.
 4. Expand optional play, memories and tank dressing.
 5. Add battery/performance controls and real-device checks.
