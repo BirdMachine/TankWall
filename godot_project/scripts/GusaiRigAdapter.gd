@@ -93,6 +93,7 @@ func _prepare_tree(node: Node) -> void:
 				material.set_shader_parameter("surface_roughness", 0.12 if eye else 0.25 if body else 0.30 if mouth else 0.42)
 				material.set_shader_parameter("wet_style", 0.85 if eye else 0.65 if body else 0.4 if mouth else 0.18)
 				material.set_shader_parameter("tint", source.albedo_color)
+				material.set_meta("eye", eye)
 				var local_pivot: Vector3 = node.global_transform.affine_inverse() * model_root.global_transform * head_pivot
 				material.set_shader_parameter("head_pivot", local_pivot)
 				node.set_surface_override_material(surface, material)
@@ -133,7 +134,19 @@ func set_swim_motion(speed: float, yaw_rate: float, pitch_rate: float, rate: flo
 
 func set_body_tint(colour: Color) -> void:
 	for material in materials:
-		material.set_shader_parameter("tint", colour)
+		if not material.get_meta("eye", false):
+			material.set_shader_parameter("tint", colour)
 
 func list_animation_names() -> PackedStringArray:
 	return animation_player.get_animation_list() if animation_player else PackedStringArray()
+
+func colour_materials() -> Array[ShaderMaterial]:
+	var result: Array[ShaderMaterial] = []
+	for material in materials:
+		if not material.get_meta("eye", false):
+			result.append(material)
+	return result
+
+func set_colour_style(style: Dictionary) -> void:
+	for material in colour_materials():
+		preload("res://scripts/AquariumStyle.gd").apply_material(material, style)

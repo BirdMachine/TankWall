@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled, depth_prepass_alpha;
+#include "res://shaders/FishPalette.gdshaderinc"
 #include "res://shaders/BettaDualQuaternion.gdshaderinc"
 
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap, repeat_enable;
@@ -58,8 +59,9 @@ void vertex() {
 
 void fragment() {
 	vec4 tex = texture(albedo_texture, UV);
-	ALBEDO = tex.rgb * tint.rgb;
+	ALBEDO = fish_colour(tex.rgb) * tint.rgb;
 	ALPHA = tex.a * review_visibility;
 	METALLIC = 0.12;
-	ROUGHNESS = 0.46;
+	ROUGHNESS = fish_roughness(0.46);
+	EMISSION = fish_shimmer(abs(dot(normalize(NORMAL), normalize(VIEW))));
 }

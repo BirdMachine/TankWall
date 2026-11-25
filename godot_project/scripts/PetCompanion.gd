@@ -20,6 +20,7 @@ var last_save_error := OK
 var read_only := false
 var reload_clock := 0.0
 var loaded_text := ""
+var preference_save_clock := -1.0
 
 func _ready() -> void:
 	var now := Time.get_unix_time_from_system()
@@ -39,6 +40,10 @@ func _process(delta: float) -> void:
 			reload_clock = 0.0
 			reload_from_disk()
 		return
+	if preference_save_clock >= 0.0:
+		preference_save_clock -= delta
+		if preference_save_clock < 0.0:
+			save()
 	snack_cooldown = maxf(0.0, snack_cooldown - delta)
 	play_cooldown = maxf(0.0, play_cooldown - delta)
 	refresh_cooldown = maxf(0.0, refresh_cooldown - delta)
@@ -158,6 +163,7 @@ func choose_look(index: int) -> void:
 
 func _apply_appearance() -> void:
 	get_parent().set_fish_tint(LOOKS[state.look])
+	get_parent().apply_fish_colours()
 
 func _apply_rest() -> void:
 	var pet := fish()
@@ -170,7 +176,7 @@ func _apply_rest() -> void:
 		pet.departure_distance = 0.0
 	if get_parent().has_method("apply_companion_view"):
 		get_parent().apply_companion_view()
-	get_parent().set_light_energy(0.32 if state.resting else 1.6)
+	get_parent().apply_lighting()
 
 func _finish(text: String) -> void:
 	save()
@@ -178,9 +184,14 @@ func _finish(text: String) -> void:
 	message.emit(text)
 	delight.emit()
 
+func queue_preferences_save() -> void:
+	# Preview at frame rate; coalesce slider/colour drags into one disk write.
+	preference_save_clock = 0.35
+
 func save() -> void:
 	if read_only:
 		return
+	preference_save_clock = -1.0
 	state.last_seen = Time.get_unix_time_from_system()
 	last_save_error = state.save_to(save_path)
 	if last_save_error != OK:
@@ -200,7 +211,7 @@ func reload_from_disk() -> void:
 	if prior.model_variant != state.model_variant:
 		get_parent().fish_model_variant = state.model_variant
 		get_parent()._spawn_fish()
-	if prior.look != state.look:
+	if prior.look != state.look or prior.style.fish != state.style.fish:
 		_apply_appearance()
 	if prior.resting != state.resting:
 		_apply_rest()
@@ -209,6 +220,7 @@ func reload_from_disk() -> void:
 	if prior.live_fins != state.live_fins or prior.fin_freedom != state.fin_freedom:
 		get_parent().apply_fin_motion()
 	get_parent().apply_companion_view()
+	get_parent().apply_lighting()
 	changed.emit()
 
 func _notification(what: int) -> void:

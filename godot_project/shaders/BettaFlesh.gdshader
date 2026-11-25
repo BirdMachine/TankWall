@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_back;
+#include "res://shaders/FishPalette.gdshaderinc"
 #include "res://shaders/BettaDualQuaternion.gdshaderinc"
 
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap;
@@ -18,7 +19,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = texture(albedo_texture, UV).rgb * tint.rgb;
+	ALBEDO = fish_colour(texture(albedo_texture, UV).rgb) * tint.rgb;
 	ROUGHNESS = surface_roughness;
 	METALLIC = surface_metallic;
 	if (use_surface_map) {
@@ -30,6 +31,8 @@ void fragment() {
 	float polished = mix(0.26, clamp(ROUGHNESS * 0.65, 0.16, 0.40), 0.35);
 	ROUGHNESS = mix(ROUGHNESS, polished, wet_style);
 	CLEARCOAT = wet_style * 0.55;
+	ROUGHNESS = fish_roughness(ROUGHNESS);
+	EMISSION = fish_shimmer(abs(dot(normalize(NORMAL), normalize(VIEW))));
 	if (use_normal_map) {
 		NORMAL_MAP = texture(normal_texture, UV).rgb;
 		NORMAL_MAP_DEPTH = normal_depth;

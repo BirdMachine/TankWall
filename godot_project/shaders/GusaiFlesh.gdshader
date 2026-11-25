@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled;
+#include "res://shaders/FishPalette.gdshaderinc"
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic;
 uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap_anisotropic;
 uniform bool use_normal_map = false;
@@ -31,11 +32,13 @@ void vertex() {
 	}
 }
 void fragment() {
-	ALBEDO = texture(albedo_texture, UV).rgb * tint.rgb;
+	ALBEDO = fish_colour(texture(albedo_texture, UV).rgb) * tint.rgb;
 	ROUGHNESS = surface_roughness;
 	METALLIC = 0.06;
 	SPECULAR = 0.55;
 	CLEARCOAT = wet_style;
+	ROUGHNESS = fish_roughness(ROUGHNESS);
+	EMISSION = fish_shimmer(abs(dot(normalize(NORMAL), normalize(VIEW))));
 	if (use_normal_map) {
 		NORMAL_MAP = texture(normal_texture, UV).rgb;
 		NORMAL_MAP_DEPTH = normal_depth;

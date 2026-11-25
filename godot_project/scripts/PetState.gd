@@ -18,6 +18,7 @@ var model_variant := 0
 var personality := "curious"
 var live_fins := true
 var fin_freedom := 2.2
+var style := preload("res://scripts/AquariumStyle.gd").defaults()
 
 func initialize(now: float) -> void:
 	adopted_at = now
@@ -58,7 +59,7 @@ func to_data() -> Dictionary:
 		"refreshes": refreshes, "resting": resting, "look": look,
 		"visits": visits, "journal": journal, "view_mode": view_mode,
 		"backwall": backwall, "model_variant": model_variant, "personality": personality,
-		"live_fins": live_fins, "fin_freedom": fin_freedom}
+		"live_fins": live_fins, "fin_freedom": fin_freedom, "style": style.duplicate(true)}
 
 func from_data(data: Dictionary, now: float) -> void:
 	pet_name = str(data.get("pet_name", "Miso")).strip_edges().left(24)
@@ -81,6 +82,7 @@ func from_data(data: Dictionary, now: float) -> void:
 	personality = str(data.get("personality", "curious"))
 	live_fins = bool(data.get("live_fins", true))
 	fin_freedom = clampf(float(data.get("fin_freedom", 2.2)), 0.5, 2.2)
+	style = preload("res://scripts/AquariumStyle.gd").sanitize(data.get("style", {}))
 	if personality not in ["curious", "calm", "dreamy"]:
 		personality = "curious"
 	var entries = data.get("journal", [])
