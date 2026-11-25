@@ -36,6 +36,7 @@ var thrust_effort := 0.6
 var pivot = PivotMotion.new()
 var departure_distance := 0.0
 var transported_dorsal := Vector3.UP
+var resting := false
 
 func _ready() -> void:
 	rng.seed = Time.get_ticks_usec() + get_instance_id() * 7919
@@ -83,6 +84,19 @@ func _set_placeholder_visible(value: bool) -> void:
 			node.visible = value
 
 func _physics_process(delta: float) -> void:
+	if resting:
+		# Calm hovering is a chosen mode, never exhaustion or a care penalty.
+		speed = move_toward(speed, 0.0, delta * 1.5)
+		thrust_effort = lerpf(thrust_effort, 0.025, minf(delta * 3.0, 1.0))
+		yaw_rate = lerpf(yaw_rate, 0.0, minf(delta * 4.0, 1.0))
+		pitch_rate = lerpf(pitch_rate, 0.0, minf(delta * 4.0, 1.0))
+		var level_heading := Vector3(heading.x, 0, heading.z)
+		if level_heading.length_squared() < 0.0001:
+			level_heading = Vector3.RIGHT
+		heading = heading.slerp(level_heading.normalized(), minf(delta * 0.8, 1.0)).normalized()
+		_apply_swim_orientation(delta)
+		_update_animation_speed()
+		return
 	retarget_time -= delta
 	gait_time += delta
 	next_pause -= delta
