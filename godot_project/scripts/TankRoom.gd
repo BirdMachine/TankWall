@@ -89,6 +89,9 @@ func _box(size: Vector3, at: Vector3, material: Material) -> void:
 	instance.mesh = box
 	instance.position = at
 	instance.material_override = material
+	# The thin room panels receive shadows; keeping them out of the caster
+	# atlas avoids self-shadow patterns across large flat walls/floor.
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(instance)
 
 func _material(colour: Color, roughness: float) -> StandardMaterial3D:

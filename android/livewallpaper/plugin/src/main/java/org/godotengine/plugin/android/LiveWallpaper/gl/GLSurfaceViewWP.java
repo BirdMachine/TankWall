@@ -612,6 +612,13 @@ public class GLSurfaceViewWP extends SurfaceView implements SurfaceHolder.Callba
             mGLThread.requestExitAndWait();
         }
     }
+    /** Godot 4.7 bounded renderer shutdown, matching the engine render-view API. */
+    protected final boolean requestRenderThreadExitAndWait(long timeInMs) {
+        if (mGLThread != null) {
+            return mGLThread.requestExitAndWait(timeInMs);
+        }
+        return false;
+    }
     // -- GODOT end --
 
     /**
@@ -1850,6 +1857,22 @@ public class GLSurfaceViewWP extends SurfaceView implements SurfaceHolder.Callba
                         Thread.currentThread().interrupt();
                     }
                 }
+            }
+        }
+
+        public boolean requestExitAndWait(long timeInMs) {
+            // Called by the host, never from this GL thread.
+            synchronized(sGLThreadManager) {
+                mShouldExit = true;
+                sGLThreadManager.notifyAll();
+                if (!mExited) {
+                    try {
+                        sGLThreadManager.wait(timeInMs);
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return mExited;
             }
         }
 

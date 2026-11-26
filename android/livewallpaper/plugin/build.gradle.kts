@@ -13,4 +13,4 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 }
-dependencies { compileOnly("org.godotengine:godot:4.5.1.stable") }
+dependencies { compileOnly("org.godotengine:godot:4.7.2.stable") }

@@ -105,8 +105,8 @@ open class GodotGLRenderViewWP(
         resumeGLThread()
     }
 
-    override fun onActivityDestroyed() {
-        requestRenderThreadExitAndWait();
+    override fun blockingExitRenderer(blockingTimeInMs: Long): Boolean {
+        return requestRenderThreadExitAndWait(blockingTimeInMs)
     }
 
     override fun onActivityResumed() {
@@ -147,6 +147,10 @@ open class GodotGLRenderViewWP(
     override fun onPointerCaptureChange(hasCapture: Boolean) {
         super.onPointerCaptureChange(hasCapture)
         inputHandler.onPointerCaptureChange(hasCapture)
+    }
+
+    override fun canCapturePointer(): Boolean {
+        return !godot.isXrRuntime && inputHandler.canCapturePointer()
     }
 
     override fun requestPointerCapture() {

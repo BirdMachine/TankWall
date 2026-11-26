@@ -29,3 +29,9 @@ android/livewallpaper/local.properties
 
 # Generated vendor model expansions (source ZIP remains tracked)
 godot_project/assets/models/bluemesh_betta/
+
+# Portraits are generated from the locally installed models.
+godot_project/assets/portraits/*.png
+
+# Pinned, generated native extension (built by scripts/build-bone-cloth.py).
+godot_project/addons/bone_cloth/

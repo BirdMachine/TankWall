@@ -21,6 +21,8 @@ var root_position := Vector3.ZERO
 var root_rotation := Quaternion.IDENTITY
 var head_pivot := Vector3(0, 0, 3.4)
 var fin_physics = FinPhysics.new()
+var native_cloth = preload("res://scripts/NativeFinCloth.gd").new()
+var fin_backend := "water"
 var live_fins := true
 var fin_freedom := 2.2
 
@@ -57,6 +59,7 @@ func attach_to(host: Node3D) -> bool:
 	var driver := Driver.new()
 	driver.adapter = self
 	skeleton.add_child(driver)
+	native_cloth.configure(skeleton, fin_physics.rays)
 	apply_visual_scale(host, 1.0)
 	print("Gusai rig: variant=", variant, " bones=", skeleton.get_bone_count(), " triangles=", triangle_count, " head=", head_pivot)
 	return not materials.is_empty()
@@ -109,7 +112,9 @@ func update_pose(delta := 0.0) -> void:
 	if root_bone >= 0:
 		skeleton.set_bone_pose_position(root_bone, root_position)
 		skeleton.set_bone_pose_rotation(root_bone, root_rotation)
-	fin_physics.enabled = live_fins
+	var use_cloth: bool = live_fins and fin_backend == "cloth" and native_cloth.available()
+	native_cloth.update(use_cloth, fin_freedom, delta)
+	fin_physics.enabled = live_fins and not use_cloth
 	fin_physics.freedom = fin_freedom
 	fin_physics.apply(delta)
 

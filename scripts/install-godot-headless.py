@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Install latest stable Godot 4 Linux editor + matching export templates in Codespaces."""
 from __future__ import annotations
-import json, os, re, shutil, stat, tempfile, urllib.request, zipfile
+import json, os, re, shutil, stat, subprocess, tempfile, urllib.request, zipfile
 from pathlib import Path
 
 BIN = Path.home() / '.local/bin/godot'
@@ -49,7 +49,8 @@ def main():
     download_version = tag.lstrip('v')
     godot_version = download_version.replace('-stable', '.stable')
 
-    if not BIN.exists():
+    installed_version = subprocess.check_output([str(BIN), "--version"], text=True).strip() if BIN.exists() else ""
+    if not installed_version.startswith(godot_version + "."):
         print(f'Installing Godot {download_version}')
         with tempfile.TemporaryDirectory() as td_name:
             td = Path(td_name)

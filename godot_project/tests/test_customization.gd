@@ -92,7 +92,7 @@ func run() -> void:
 	check(root.get_camera_3d() == main.get_node("Camera3D"), "Closing preview did not restore the tank view")
 	check(main.get_node("Camera3D").transform.is_equal_approx(original_camera), "Closing live preview did not restore the camera")
 	hud._show_looks()
-	var picker = hud.modal_body.get_node("fish_base")
+	var picker = hud.modal_body.find_child("fish_base", true, false)
 	picker.color_changed.emit(Color("55aaff"))
 	check(main.care.state.style.fish.base == "55aaffff", "Colour picker didn't reach live fish")
 	main.set_style_value("fish", "brightness", 1.2)
