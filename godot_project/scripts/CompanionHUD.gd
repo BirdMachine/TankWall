@@ -221,6 +221,7 @@ func _show_care() -> void:
 
 func _show_fish() -> void:
 	_open_page("Your fish", "Choose a silhouette. Keep your favourite colours.")
+	_fish_tabs("Shape")
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 10)
@@ -258,8 +259,6 @@ func _show_fish() -> void:
 		var detail := _label(stack, entry.detail, 12, MUTED)
 		detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_label(stack, "Selected" if selected else "Choose", 12, ACCENT if selected else GOLD)
-	_button(modal_body, "Colour & finish  ›", _show_looks)
-	_button(modal_body, "Movement & personality  ›", _show_motion)
 
 func _show_world() -> void:
 	_open_page("Your world", "An open stage, or a little room with depth.")
@@ -273,6 +272,7 @@ func _show_world() -> void:
 
 func _show_motion() -> void:
 	_open_page("Movement", "A little personality, with room to wander.")
+	_fish_tabs("Motion")
 	_section("Fin motion")
 	var motion := CheckButton.new()
 	motion.text = "Reactive fins"
@@ -295,7 +295,7 @@ func _show_motion() -> void:
 
 func _show_looks() -> void:
 	_open_page("Colour & finish", "Your palette, with the original scales and fin detail.")
-	_page_tabs([["Colour", _show_looks], ["Finish", _show_finish]], "Colour")
+	_fish_tabs("Colour")
 	var enabled := CheckButton.new()
 	enabled.text = "Custom palette"
 	enabled.button_pressed = care.state.style.fish.enabled
@@ -319,7 +319,7 @@ func _show_looks() -> void:
 
 func _show_finish() -> void:
 	_open_page("Colour & finish", "A little sheen, or a softer, quieter finish.")
-	_page_tabs([["Colour", _show_looks], ["Finish", _show_finish]], "Finish")
+	_fish_tabs("Finish")
 	_colour_control("Shimmer colour", "fish", "shimmer")
 	_style_slider("Shimmer", "fish", "shimmer_amount", 0, 1, 0.05)
 	_style_slider("Shine", "fish", "shine", 0, 1, 0.05)
@@ -359,6 +359,9 @@ func _show_depth() -> void:
 	_label(modal_body, "Occlusion and shadows use extra rendering power. Switch them off for a lighter wallpaper.", 13, MUTED).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_button(modal_body, "‹  Your world", _show_world, 48)
 
+func _fish_tabs(current: String) -> void:
+	_page_tabs([["Shape", _show_fish], ["Colour", _show_looks], ["Finish", _show_finish], ["Motion", _show_motion]], current)
+
 func _page_tabs(entries: Array, current: String) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
@@ -378,7 +381,7 @@ func _choices(entries: Array, current: String, action: Callable) -> void:
 		button.name = "choice_" + entry[1]
 		button.toggle_mode = true
 		button.button_pressed = entry[1] == current
-		var group := row.get_meta("group", null) as ButtonGroup
+		var group := row.get_meta("group") as ButtonGroup if row.has_meta("group") else null
 		if group == null:
 			group = ButtonGroup.new()
 			row.set_meta("group", group)
