@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('input', type=Path)
 parser.add_argument('output', type=Path)
 parser.add_argument('--strip-library', action='append', default=[], help='Project extension library basename to re-export, repeatable')
+parser.add_argument('--strip-asset', action='append', default=[], help='Project asset path below assets/ to re-export, repeatable')
 args = parser.parse_args()
 assert args.input.resolve() != args.output.resolve()
 with zipfile.ZipFile(args.input) as source, zipfile.ZipFile(args.output, 'w') as target:
@@ -19,7 +20,7 @@ with zipfile.ZipFile(args.input) as source, zipfile.ZipFile(args.output, 'w') as
     for item in source.infolist():
         if item.filename.startswith('lib/') and Path(item.filename).name in args.strip_library:
             continue
-        if item.filename.startswith('assets/') and not item.filename.startswith('assets/licenses/'):
+        if item.filename.startswith('assets/') and (not item.filename.startswith('assets/licenses/') or item.filename.removeprefix('assets/') in args.strip_asset):
             continue
         if item.filename.startswith('META-INF/') and item.filename.upper().endswith(('.RSA', '.SF', '.MF')):
             continue

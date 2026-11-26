@@ -1,6 +1,6 @@
 # Gallery, depth and fin modes · 0.13
 
-The companion now uses a compact navigation bar and quiet ivory/sea-glass styling, with separate Care, Fish, World and Journal sheets. The fish remains visible while editing. Colour and finish, light and depth, and movement have their own pages. Portrait and landscape use a separate preview camera, leaving the camera used for swim bounds untouched.
+The companion now uses a compact navigation bar and quiet ivory/sea-glass styling, with separate Care, Fish, World and Journal sheets. The fish remains visible while editing. Shape, Colour, Finish and Motion are directly accessible from the fish tabs. Light and depth have their own pages. Portrait and landscape use a separate preview camera, leaving the camera used for swim bounds untouched.
 
 ## Fish preparation
 
@@ -38,3 +38,5 @@ Tests verify finite motion, untouched body/head channels, scale preservation and
 Use Godot 4.7.2 and Android SDK/build-tools 35, with NDK 28.1.13356709 for the optional cloth backend. Install SCons 4.11.1 into an isolated environment, then run `python3 scripts/build-bone-cloth.py --android`. The normal Android build script builds the matching wallpaper AAR and exports the app. CI performs these steps from pinned public sources and never fetches the purchased fish.
 
 Validation results and device-specific limits are reported in the PR and downloadable nightflight notes. A native cloth mode is offered as experimental; the original water proxy remains available.
+
+For private resource-only rebuilds, `prepare-native-shell.py` accepts repeatable `--strip-library` and `--strip-asset` options. Strip the previous project extension, its re-exported C++ dependency, and `licenses/BoneCloth.txt` before exporting them again; otherwise APK signing rejects duplicate ZIP entries. Keep the same-engine shell and private signing key in the private checkpoint.
