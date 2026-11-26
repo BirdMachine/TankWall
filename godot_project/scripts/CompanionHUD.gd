@@ -10,6 +10,7 @@ const GOLD := Color("cbb991")
 const PANEL := Color("102329")
 var care
 var root: Control
+var header_shade: ColorRect
 var header: PanelContainer
 var dock: PanelContainer
 var modal: PanelContainer
@@ -62,6 +63,12 @@ func _build() -> void:
 	root.theme = theme
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
+	header_shade = ColorRect.new()
+	header_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var shade := ShaderMaterial.new()
+	shade.shader = preload("res://shaders/HeaderShade.gdshader")
+	header_shade.material = shade
+	root.add_child(header_shade)
 	header = PanelContainer.new()
 	header.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	root.add_child(header)
@@ -150,6 +157,10 @@ func _layout() -> void:
 		_place(modal, Rect2(size.x * 0.045, size.y * 0.53, size.x * 0.91, size.y * 0.43))
 		_place(note, Rect2(size.x * 0.08, size.y * 0.83, size.x * 0.84, size.y * 0.06))
 	header.visible = not (preview_page and size.x > size.y)
+	header_shade.visible = header.visible
+	header_shade.position = Vector2.ZERO
+	header_shade.size = Vector2(size.x * 0.37, size.y * 0.65) if size.x > size.y else Vector2(size.x, size.y * 0.23)
+	header_shade.material.set_shader_parameter("landscape", size.x > size.y)
 
 func _place(control: Control, rect: Rect2) -> void:
 	control.position = rect.position
@@ -157,14 +168,6 @@ func _place(control: Control, rect: Rect2) -> void:
 
 func _refresh() -> void:
 	name_button.text = care.state.pet_name
-	var bright: bool = Color.html(care.state.backwall).get_luminance() > 0.55 and not care.state.resting
-	var ink: Color = Color("183139") if bright else PAPER
-	name_button.add_theme_color_override("font_color", ink)
-	name_button.add_theme_color_override("font_hover_color", ink)
-	name_button.add_theme_color_override("font_pressed_color", ink)
-	brand_label.add_theme_color_override("font_color", Color("6d5c3f") if bright else GOLD)
-	status.add_theme_color_override("font_color", Color("385a5d") if bright else MUTED)
-	note.add_theme_color_override("font_color", ink)
 	_refresh_status()
 	friendship.text = "Friendship %02d" % care.state.level()
 	if is_instance_valid(rest_button):
@@ -534,6 +537,7 @@ func _end_preview() -> void:
 	preview_camera = null
 	preview_page = false
 	header.show()
+	header_shade.show()
 
 func _fit_colour_picker(picker: ColorPickerButton) -> void:
 	var popup := picker.get_popup()
