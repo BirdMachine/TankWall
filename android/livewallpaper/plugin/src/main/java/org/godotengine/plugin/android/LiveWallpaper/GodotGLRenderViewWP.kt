@@ -105,8 +105,8 @@ open class GodotGLRenderViewWP(
         resumeGLThread()
     }
 
-    override fun onActivityDestroyed() {
-        requestRenderThreadExitAndWait();
+    override fun blockingExitRenderer(blockingTimeInMs: Long): Boolean {
+        return requestRenderThreadExitAndWait(blockingTimeInMs)
     }
 
     override fun onActivityResumed() {
