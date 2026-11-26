@@ -149,6 +149,10 @@ open class GodotGLRenderViewWP(
         inputHandler.onPointerCaptureChange(hasCapture)
     }
 
+    override fun canCapturePointer(): Boolean {
+        return !godot.isXrRuntime() && inputHandler.canCapturePointer()
+    }
+
     override fun requestPointerCapture() {
         if (canCapturePointer()) {
             super.requestPointerCapture()

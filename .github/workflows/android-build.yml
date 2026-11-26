@@ -36,7 +36,8 @@ jobs:
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.1" \
-            "cmdline-tools;latest"
+            "cmdline-tools;latest" \
+            "ndk;28.1.13356709"
 
       - name: Install Godot and export templates
         env:
@@ -53,6 +54,17 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME"
           echo "ANDROID_HOME=$ANDROID_HOME"
           ls -la "$HOME/.local/share/godot/export_templates"
+
+      - name: Cache native fin build
+        uses: actions/cache@v4
+        with:
+          path: build/vendor/bone-cloth
+          key: bone-cloth-0fa3f9f8-godot47-ndk281-${{ runner.os }}-v1
+
+      - name: Build native fin extension
+        run: |
+          python3 -m pip install --target build/scons scons==4.11.1
+          PYTHONPATH="$PWD/build/scons" python3 scripts/build-bone-cloth.py --android --jobs 4
 
       - name: Build debug APK
         run: bash scripts/build-android-debug.sh
@@ -78,6 +90,8 @@ jobs:
           godot --headless --path godot_project --script res://tests/test_companion.gd
           godot --headless --path godot_project --script res://tests/test_living_tank.gd
           godot --headless --path godot_project --script res://tests/test_customization.gd
+          godot --headless --path godot_project --script res://tests/test_gallery_depth.gd
+          godot --headless --path godot_project --script res://tests/test_native_fin_cloth.gd
           godot --headless --path godot_project --script res://tests/test_fin_cloth.gd
           godot --headless --path godot_project --script res://tests/test_deep_fins.gd
           godot --headless --path godot_project --script res://tests/test_fin_rig.gd

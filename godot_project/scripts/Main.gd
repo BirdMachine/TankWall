@@ -23,6 +23,7 @@ var wallpaper_mode_override := false # repeatable desktop/service-state testing
 var wallpaper_bridge
 var tank_room: Node3D
 var room_layout_key := ""
+var depth_lighting_key := ""
 var fill_light: DirectionalLight3D
 const Style = preload("res://scripts/AquariumStyle.gd")
 
@@ -47,6 +48,9 @@ func _ready() -> void:
 	add_child(tank_room)
 	apply_companion_view()
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
+	if OS.has_feature("native_fin_check"):
+		var native_probe = preload("res://tests/NativeFinSmoke.gd").new()
+		add_child(native_probe)
 	print("TamoTank: ", "wallpaper" if wallpaper_mode else "companion", " ready; view=", care.state.view_mode)
 	if wallpaper_mode and not DisplayServer.get_name() == "headless":
 		RenderingServer.frame_post_draw.connect(func(): print("TamoTank: wallpaper frame drawn; viewport=", get_viewport().get_visible_rect().size), CONNECT_ONE_SHOT)
@@ -116,7 +120,7 @@ func _configure_swim_bounds() -> void:
 	var rect := get_viewport().get_visible_rect()
 	var points: Array[Vector3] = []
 	var top := rect.size.y * 0.18
-	var bottom := rect.size.y * 0.72
+	var bottom := rect.size.y * 0.86
 	var left := 0.0
 	var right := rect.size.x
 	if rect.size.x > rect.size.y:
@@ -197,6 +201,7 @@ func set_backwall(colour: Color) -> void:
 	care.state.backwall = colour.to_html()
 	apply_companion_view()
 	care.queue_preferences_save()
+	care.changed.emit()
 
 func set_model_variant(index: int) -> void:
 	care.state.model_variant = clampi(index, 0, 2)
@@ -216,6 +221,7 @@ func apply_fin_motion() -> void:
 		if fish.rig_adapter and fish.rig_adapter.get("fin_physics") != null:
 			fish.rig_adapter.live_fins = care.state.live_fins
 			fish.rig_adapter.fin_freedom = care.state.fin_freedom
+			fish.rig_adapter.fin_backend = care.state.fin_backend
 
 func set_fin_motion(enabled: bool) -> void:
 	care.state.live_fins = enabled
@@ -355,6 +361,21 @@ func apply_lighting() -> void:
 	light.light_color = Color.html(settings.key)
 	light.light_energy = settings.energy * restful
 	light.rotation_degrees = Vector3(-settings.elevation, settings.yaw, 0)
+	light.shadow_enabled = settings.shadows
+	light.shadow_opacity = settings.shadow_strength
+	light.shadow_bias = 0.08
+	light.shadow_normal_bias = 1.0
+	light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	light.directional_shadow_max_distance = 20.0
+	var environment: Environment = $WorldEnvironment.environment
+	environment.ssao_enabled = settings.occlusion
+	environment.ssao_radius = settings.occlusion_radius
+	environment.ssao_intensity = settings.occlusion_strength
+	environment.ambient_light_color = Color.html(settings.ambient_colour)
+	var depth_key := str(settings.occlusion) + str(settings.shadows)
+	if depth_key != depth_lighting_key:
+		depth_lighting_key = depth_key
+		print("TamoTank: depth lighting applied; occlusion=", settings.occlusion, " shadows=", settings.shadows)
 	if fill_light == null:
 		fill_light = DirectionalLight3D.new()
 		fill_light.name = "ColourFillLight"
@@ -396,3 +417,13 @@ func randomise_fish() -> void:
 		"details": Color.from_hsv(fposmod(hue + randf_range(0.18, 0.55), 1.0), 0.65, 1.0).to_html(),
 		"shimmer": Color.from_hsv(hue, 0.25, 1.0).to_html(), "shimmer_amount": 0.28}, true)
 	_commit_style("fish")
+
+func choose_lighting(preset_name: String) -> void:
+	care.state.style.lights = Style.lighting(preset_name)
+	_commit_style("lights")
+
+func set_fin_backend(value: String) -> void:
+	care.state.fin_backend = "cloth" if value == "cloth" else "water"
+	apply_fin_motion()
+	care.queue_preferences_save()
+	care.changed.emit()

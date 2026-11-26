@@ -50,6 +50,7 @@ try:
  adb('shell','settings','put','global','animator_duration_scale','0')
  adb('shell','am','start','-n',PACKAGE+'/com.godot.game.GodotApp')
  wait_for(lambda:'TamoTank: companion ready' in logs(),'foreground companion starts',180)
+ wait_for(lambda:'native fin runtime passed' in logs(),'native fin extension simulates on Android',90)
  tap_labels({'got it'})
  screenshot('companion')
  adb('shell','am','start','-a','android.service.wallpaper.CHANGE_LIVE_WALLPAPER','--ecn','android.service.wallpaper.extra.LIVE_WALLPAPER_COMPONENT',SERVICE)
@@ -66,9 +67,11 @@ try:
  assert len(files)==1, 'Expected one care save'
  path=files[0].strip();assert re.fullmatch(r'files/[A-Za-z0-9_./-]+',path)
  fixture=read_care(path);fixture.update(bond=17,snacks=4,pet_name='Pebble',backwall='21435bff')
+ fixture.setdefault('style',{}).setdefault('lights',{}).update(occlusion=True,occlusion_strength=0.8,occlusion_radius=0.22,shadows=True,shadow_strength=0.6)
  remote='cat > '+shlex.quote(path+'.test')+' && mv '+shlex.quote(path+'.test')+' '+shlex.quote(path)
  adb('shell','run-as '+shlex.quote(PACKAGE)+' sh -c '+shlex.quote(remote),input=json.dumps(fixture))
  wait_for(lambda:'TamoTank: wallpaper preferences refreshed' in logs(),'wallpaper reads foreground preferences')
+ wait_for(lambda:'occlusion=true shadows=true' in logs().lower(),'native occlusion and shadows applied')
  # Cross the foreground save interval; a stale wallpaper writer would now
  # overwrite the injected progress. This is a disposable test companion.
  time.sleep(35)
@@ -83,8 +86,8 @@ try:
  wait_for(lambda:logs().count('TamoTank wallpaper visible=true')>visible_before,'wallpaper simulation resumes after wake',30)
  time.sleep(3);screenshot('wallpaper-resumed')
  output=logs()
- assert 'FATAL EXCEPTION' not in output and 'Shader compilation failed' not in output and 'Program linking failed' not in output, 'Native crash or shader failure'
- (args.output/'result.json').write_text(json.dumps({'passed':True,'android':'34','checks':['foreground','preview','frame','apply','read-only care','settings refresh','visibility','wake']},indent=2))
+ assert 'SCRIPT ERROR' not in output and 'FATAL EXCEPTION' not in output and 'Shader compilation failed' not in output and 'Program linking failed' not in output, 'Native crash or shader failure'
+ (args.output/'result.json').write_text(json.dumps({'passed':True,'android':'34','checks':['foreground','preview','frame','apply','read-only care','settings refresh','ambient occlusion','shadow rendering','native fin ABI simulation','visibility','wake']},indent=2))
 finally:
  (args.output/'logcat.txt').write_text(logs())
  (args.output/'logcat-all.txt').write_text(adb('logcat','-d','-v','threadtime',check=False))

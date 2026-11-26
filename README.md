@@ -1,5 +1,9 @@
 # TamoTank / TankWall
 
+## Gallery & depth · 0.13
+
+A quieter companion UI, an actual-model fish gallery, real ambient occlusion and shadow controls, lighting studies, and an experimental native cloth fin mode. Open **Fish → Movement & personality** or **World → Depth & shadows**. Both purchased shapes share persistent care/colour settings. [Preparation, engine migration and validation](docs/GALLERY_AND_DEPTH.md).
+
 The 0.12 nightflight adds live **fish palettes, markings, shimmer and shine**, plus **coloured main/fill lights, direction, ambient strength and backwall colour**. Open **World → Fish colours & shimmer / Lights & atmosphere**. Preferences also apply to the live wallpaper. [Reference review and limitations](docs/fish-colours-and-lights.md).
 
 A gentle betta companion for Android, growing toward a live wallpaper. Care is optional and additive: the resident stays safe and content while you are away.
