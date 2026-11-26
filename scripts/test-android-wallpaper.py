@@ -48,7 +48,8 @@ try:
  adb('shell','settings','put','global','window_animation_scale','0')
  adb('shell','settings','put','global','transition_animation_scale','0')
  adb('shell','settings','put','global','animator_duration_scale','0')
- adb('shell','am','start','-n',PACKAGE+'/com.godot.game.GodotApp')
+ # Resolve the exported launcher alias; Godot 4.7 keeps its target activity private.
+ adb('shell','am','start','-a','android.intent.action.MAIN','-c','android.intent.category.LAUNCHER','-p',PACKAGE)
  wait_for(lambda:'TamoTank: companion ready' in logs(),'foreground companion starts',180)
  wait_for(lambda:'native fin runtime passed' in logs(),'native fin extension simulates on Android',90)
  tap_labels({'got it'})
